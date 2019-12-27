@@ -2,9 +2,9 @@ CC = gcc
 
 CPPFLAGS =
 DEBUG ?=
-CFLAGS = -Wall -Wextra -Werror -std=c99 -pedantic -I./headers ${DEBUG}
+CFLAGS = -Wall -Wextra -Werror -std=c99 -lm -pedantic -I./headers ${DEBUG}
 LDFLAGS = -lm -pthread
-LDLIBS =
+LDLIBS = -lm
 VPATH = ./
 
 SRC ?= rt.c raytracer.c parser.c parse_obj.c vector3.c vector3-extern.c hit.c colors.c ray.c stack.c printer.c light.c thread_arg.c
