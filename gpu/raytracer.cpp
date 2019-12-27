@@ -3,13 +3,9 @@
 #endif
 #include <math.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <stdlib.h>
 
-#include "printer.h"
-#include "scene.h"
 #include "vector3.h"
-#include "parser.h"
 #include "ray.h"
 #include "colors.h"
 #include "hit.h"
@@ -33,24 +29,27 @@ static struct color trace(struct scene scene, struct ray ray, float coef)
   return init_color(0, 0, 0);
 }
 
-void * raytrace_thread(void *args)
+void raytrace(const scene &scene, struct color *output)
 {
-  struct thread_arg *arg = reinterpret_cast<struct thread_arg *>(args);
-  int startx = arg->startx;
-  int stopx = arg->stopx;
-  int starty = arg->starty;
-  int stopy = arg->stopy;
-  int halfh = arg->halfh;
-  int halfw = arg->halfw;
-  struct scene scene = arg->scene;
-  struct color *output_tab = arg->output_tab;
-  struct vector3 v = arg->v;
-  struct vector3 u = arg->u;
-  struct vector3 C = arg->C;
+  struct vector3 u = vector3_normalize(scene.camera.u);
+  struct vector3 v = vector3_normalize(scene.camera.v);
+  struct vector3 w = vector3_cross(u, v);
+  float L = scene.camera.width / (2 * tan(scene.camera.fov * M_PI / 360));
+  struct vector3 C = vector3_add(scene.camera.position, vector3_scale(w, L));
+
+  int halfw = scene.camera.width / 2;
+  int halfh = scene.camera.height / 2;
+
+  int startx = halfw;
+  int stopx = -halfw;
+  int starty = halfh;
+  int stopy = -halfh;
+
   for (int j = startx; j > stopx; j--)
   {
     for (int i = starty; i > stopy; i--)
     {
+      /* Aliasing here */
       struct color color = init_color(0, 0, 0);
       for (float k = i; k < i + 1; k += 0.5)
       {
@@ -68,69 +67,7 @@ void * raytrace_thread(void *args)
           color = color_add(color, tcolor);
         }
       }
-      output_tab[(j + halfh) * scene.camera.width + (i + halfw)] = color;
+      output[(j + halfh) * scene.camera.width + (i + halfw)] = color;
     }
   }
-  int *i = (int*)malloc(sizeof(int));
-  *i = 100;
-  pthread_exit((void *)i);
-}
-
-void raytrace(const char *input, const char *output)
-{
-  struct scene scene = parser(input);
-  struct vector3 u = vector3_normalize(scene.camera.u);
-  struct vector3 v = vector3_normalize(scene.camera.v);
-  struct vector3 w = vector3_cross(u, v);
-  float L = scene.camera.width / (2 * tan(scene.camera.fov * M_PI / 360));
-  struct vector3 C = vector3_add(scene.camera.position, vector3_scale(w, L));
-  FILE *out = open_output(output, scene.camera.width, scene.camera.height);
-
-  int halfw = scene.camera.width / 2;
-  int halfh = scene.camera.height / 2;
-  struct color output_tab[(scene.camera.width + 1) * (scene.camera.height + 1)];
-  pthread_t tid[4];
-  struct thread_arg args[4];
-  for (int i = 0; i < 4; i++)
-  {
-    args[i] =
-      init_thread_arg(output_tab, v, u, C);
-    args[i].scene = scene;
-  }
-  args[0].startx = halfh;
-  args[0].starty = halfw;
-  args[0].stopx = 0;
-  args[0].stopy = 0;
-  args[1].startx = halfh;
-  args[1].starty = 0;
-  args[1].stopx = 0;
-  args[1].stopy = -halfw;
-  args[2].startx = 0;
-  args[2].starty = halfw;
-  args[2].stopx = -halfh;
-  args[2].stopy = 0;
-  args[3].startx = 0;
-  args[3].starty = 0;
-  args[3].stopx = -halfh;
-  args[3].stopy = -halfw;
-
-  for (int i = 0; i < 4; i++)
-  {
-    args[i].halfh = halfh;
-    args[i].halfw = halfw;
-    pthread_create(&tid[i], NULL, raytrace_thread, args + i);
-  }
-
-  for (int i = 0; i < 4; i++)
-  {
-    pthread_join(tid[i], NULL);
-  }
-  for (int j = scene.camera.height; j > 0; j--)
-  {
-    for (int i = scene.camera.width; i > 0; i--)
-    {
-      print_color(output_tab[j * scene.camera.width + i], out);
-    }
-  }
-  return;
 }
