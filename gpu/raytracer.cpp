@@ -29,7 +29,7 @@ static struct color trace(struct scene scene, struct ray ray, float coef)
   return init_color(0, 0, 0);
 }
 
-void raytrace(const scene &scene, struct color *output)
+void raytrace(const scene &scene, struct color *output, int aliasing)
 {
   vector3 u = vector3_normalize(scene.camera.u);
   vector3 v = vector3_normalize(scene.camera.v);
@@ -45,15 +45,17 @@ void raytrace(const scene &scene, struct color *output)
   int starty = halfh;
   int stopy = -halfh;
 
+  float aliasing_step = 1.0 / aliasing;
+
   for (int x = startx; x > stopx; x--)
   {
     for (int y = starty; y > stopy; y--)
     {
       /* Aliasing here */
       struct color color = init_color(0, 0, 0);
-      for (float x_aliasing = x; x_aliasing < x + 1; x_aliasing += 0.5)
+      for (float x_aliasing = x; x_aliasing < x + 1; x_aliasing += aliasing_step)
       {
-        for (float y_aliasing = y; y_aliasing < y + 1; y_aliasing += 0.5)
+        for (float y_aliasing = y; y_aliasing < y + 1; y_aliasing += aliasing_step)
         {
           vector3 ui = vector3_scale(u, x_aliasing);
           vector3 vj = vector3_scale(v, y_aliasing);
