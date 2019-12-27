@@ -1,6 +1,8 @@
 #include "parser.h"
 #include "parse_obj.h"
 
+#include <cstdlib>
+
 struct camera parse_camera(FILE *file)
 {
   struct camera cam;
