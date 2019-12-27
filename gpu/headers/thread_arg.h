@@ -14,12 +14,12 @@ struct thread_arg {
   int halfw;
   struct scene scene;
   struct color *output_tab;
-  struct vector3 v;
-  struct vector3 u;
-  struct vector3 C;
+  vector3 v;
+  vector3 u;
+  vector3 C;
 };
 
-struct thread_arg init_thread_arg(struct color *output_tab, struct vector3 v,
-                                  struct vector3 u, struct vector3 C);
+struct thread_arg init_thread_arg(struct color *output_tab, vector3 v,
+                                  vector3 u, vector3 C);
 
 #endif /* !THREAD_ARG_H */

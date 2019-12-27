@@ -2,16 +2,16 @@
 #include "vector3.h"
 
 static int ray_intersect(struct ray ray, struct triangle triangle,
-                         struct vector3 *out, struct vector3 *normal)
+                         vector3 *out, vector3 *normal)
 {
   const float EPSILON = 0.0000001;
-  struct vector3 vertex0 = triangle.vertex[0];
-  struct vector3 vertex1 = triangle.vertex[1];
-  struct vector3 vertex2 = triangle.vertex[2];
-  struct vector3 normal0 = vector3_normalize(triangle.normal[0]);
-  struct vector3 normal1 = vector3_normalize(triangle.normal[1]);
-  struct vector3 normal2 = vector3_normalize(triangle.normal[2]);
-  struct vector3 edge1, edge2, h, s, q;
+  vector3 vertex0 = triangle.vertex[0];
+  vector3 vertex1 = triangle.vertex[1];
+  vector3 vertex2 = triangle.vertex[2];
+  vector3 normal0 = vector3_normalize(triangle.normal[0]);
+  vector3 normal1 = vector3_normalize(triangle.normal[1]);
+  vector3 normal2 = vector3_normalize(triangle.normal[2]);
+  vector3 edge1, edge2, h, s, q;
   float a, f, u, v;
   edge1 = vector3_sub(vertex1, vertex0);
   edge2 = vector3_sub(vertex2, vertex0);
@@ -32,7 +32,7 @@ static int ray_intersect(struct ray ray, struct triangle triangle,
   float t = f * vector3_dot(edge2, q);
   if (t > EPSILON)
   {
-    struct vector3 t2 = vector3_scale(vector3_normalize(ray.direction),
+    vector3 t2 = vector3_scale(vector3_normalize(ray.direction),
                                       t * vector3_length(ray.direction));
     *out = vector3_add(ray.origin, t2);
     *normal = vector3_add(vector3_add(vector3_scale(normal0, 1 - u - v),
@@ -49,8 +49,8 @@ static struct ray triangle_collide(struct object object, struct ray ray)
   struct ray ret = init_ray();
   for (size_t i = 0; i < object.triangle_count; i++)
   {
-    struct vector3 out;
-    struct vector3 normal;
+    vector3 out;
+    vector3 normal;
     int has_intersected = ray_intersect(ray, object.triangles[i], &out,
                                         &normal);
     if (has_intersected)

@@ -3,8 +3,8 @@
 # include "vector3.h"
 
 struct ray {
-  struct vector3 origin;
-  struct vector3 direction;
+  vector3 origin;
+  vector3 direction;
 };
 
 struct ray init_ray(void);

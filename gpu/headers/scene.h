@@ -5,20 +5,20 @@
 # include "vector3.h"
 
 struct triangle {
-  struct vector3 vertex[3];
-  struct vector3 normal[3];
+  vector3 vertex[3];
+  vector3 normal[3];
 };
 
 struct object {
   struct triangle *triangles;
   unsigned triangle_count;
-  struct vector3 ka;
-  struct vector3 kd;
-  struct vector3 ks;
-  float ns;
-  float ni;
-  float nr;
-  float d;
+  vector3 ka;// Ambient color
+  vector3 kd;// Directional / point color
+  vector3 ks;// Specular color
+  float ns;// Specular light coefficient
+  float ni;// Unused
+  float nr;// Reflection coefficient
+  float d;// Unused
 };
 
 enum light_type {
@@ -33,16 +33,16 @@ struct light {
   float r;
   float g;
   float b;
-  struct vector3 v;
+  vector3 v;
 
 };
 
 struct camera {
   int width;
   int height;
-  struct vector3 position;
-  struct vector3 u;
-  struct vector3 v;
+  vector3 position;
+  vector3 u;
+  vector3 v;
   float fov;
 };
 

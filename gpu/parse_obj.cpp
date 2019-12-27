@@ -19,9 +19,9 @@ struct object init_object(void)
   return object;
 }
 
-struct vector3 create_vec(FILE *file)
+vector3 create_vec(FILE *file)
 {
-  struct vector3 vec;
+  vector3 vec;
   fscanf(file, "%f %f %f", &vec.x, &vec.y, &vec.z);
   return vec;
 }

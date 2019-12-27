@@ -1,6 +1,6 @@
 #include "stack.h"
 
-struct list *init_list(struct vector3 data)
+struct list *init_list(vector3 data)
 {
   struct list *list = (struct list *)malloc(sizeof (struct list));
   if (!list)
@@ -20,7 +20,7 @@ struct stack *init_stack(void)
   return stack;
 }
 
-void add_stack(struct stack *stack, struct vector3 elt)
+void add_stack(struct stack *stack, vector3 elt)
 {
   struct list *new_elt = init_list(elt);
   if (new_elt)
@@ -31,7 +31,7 @@ void add_stack(struct stack *stack, struct vector3 elt)
   }
 }
 
-struct vector3 head_stack(struct stack *stack)
+vector3 head_stack(struct stack *stack)
 {
   return stack->head->data;
 }

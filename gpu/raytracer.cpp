@@ -31,11 +31,11 @@ static struct color trace(struct scene scene, struct ray ray, float coef)
 
 void raytrace(const scene &scene, struct color *output)
 {
-  struct vector3 u = vector3_normalize(scene.camera.u);
-  struct vector3 v = vector3_normalize(scene.camera.v);
-  struct vector3 w = vector3_cross(u, v);
+  vector3 u = vector3_normalize(scene.camera.u);
+  vector3 v = vector3_normalize(scene.camera.v);
+  vector3 w = vector3_cross(u, v);
   float L = scene.camera.width / (2 * tan(scene.camera.fov * M_PI / 360));
-  struct vector3 C = vector3_add(scene.camera.position, vector3_scale(w, L));
+  vector3 C = vector3_add(scene.camera.position, vector3_scale(w, L));
 
   int halfw = scene.camera.width / 2;
   int halfh = scene.camera.height / 2;
@@ -45,20 +45,20 @@ void raytrace(const scene &scene, struct color *output)
   int starty = halfh;
   int stopy = -halfh;
 
-  for (int j = startx; j > stopx; j--)
+  for (int x = startx; x > stopx; x--)
   {
-    for (int i = starty; i > stopy; i--)
+    for (int y = starty; y > stopy; y--)
     {
       /* Aliasing here */
       struct color color = init_color(0, 0, 0);
-      for (float k = i; k < i + 1; k += 0.5)
+      for (float x_aliasing = x; x_aliasing < x + 1; x_aliasing += 0.5)
       {
-        for (float l = j; l < j + 1; l += 0.5)
+        for (float y_aliasing = y; y_aliasing < y + 1; y_aliasing += 0.5)
         {
-          struct vector3 ui = vector3_scale(u, k);
-          struct vector3 vj = vector3_scale(v, l);
-          struct vector3 point = vector3_add(vector3_add(C, ui), vj);
-          struct vector3 direction = vector3_normalize(vector3_sub(scene.camera.position, point));
+          vector3 ui = vector3_scale(u, x_aliasing);
+          vector3 vj = vector3_scale(v, y_aliasing);
+          vector3 point = vector3_add(vector3_add(C, ui), vj);
+          vector3 direction = vector3_normalize(vector3_sub(scene.camera.position, point));
           struct ray ray;
           ray.origin = point;
           ray.direction = direction;
@@ -67,7 +67,7 @@ void raytrace(const scene &scene, struct color *output)
           color = color_add(color, tcolor);
         }
       }
-      output[(j + halfh) * scene.camera.width + (i + halfw)] = color;
+      output[(y + halfh) * scene.camera.width + (x + halfw)] = color;
     }
   }
 }
