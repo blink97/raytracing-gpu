@@ -1,7 +1,7 @@
 #include "hit.h"
 #include "vector3.h"
 
-static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_normal,
+__host__ __device__ static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_normal,
                          vector3 *out, vector3 *normal)
 {
   const float EPSILON = 0.0000001;
@@ -43,7 +43,7 @@ static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_n
   return 0;
 }
 
-static struct ray triangle_collide(struct object object, struct ray ray)
+__host__ __device__ static struct ray triangle_collide(struct object object, struct ray ray)
 {
   float distance = 0;
   struct ray ret = init_ray();
@@ -73,7 +73,7 @@ static struct ray triangle_collide(struct object object, struct ray ray)
   return ret;
 }
 
-struct ray collide(struct scene scene, struct ray ray, struct object *obj)
+__host__ __device__ struct ray collide(struct scene scene, struct ray ray, struct object *obj)
 {
   float distance = 0;
   struct ray ret = init_ray();
@@ -94,7 +94,7 @@ struct ray collide(struct scene scene, struct ray ray, struct object *obj)
   return ret;
 }
 
-float collide_dist(struct scene scene, struct ray ray)
+__host__ __device__ float collide_dist(struct scene scene, struct ray ray)
 {
   float distance = 0;
   for (size_t i = 0; i < scene.object_count; i++)
