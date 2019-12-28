@@ -107,5 +107,6 @@ struct scene parser(const char *path)
       errx(1, "Error during the parsing %s\n", instruction);
   }
 
+  fclose(svati);
   return scene;
 }
