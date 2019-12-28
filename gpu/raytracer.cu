@@ -37,6 +37,8 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
   int px = blockDim.x * blockIdx.x + threadIdx.x;
   int py = blockDim.y * blockIdx.y + threadIdx.y;
 
+  printf("return\n");
+
   if (px >= width || py >= height)
     return;
 
@@ -79,23 +81,23 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
     //abortError("Fail buffer allocation");
 
   // Run the kernel with blocks of size 64 x 64
-  {
-    int bsize = 32;
-    int w     = std::ceil((float)width / bsize);
-    int h     = std::ceil((float)height / bsize);
+  int bsize = 32;
+  int wi     = std::ceil((float)width / bsize);
+  int he     = std::ceil((float)height / bsize);
 
-    spdlog::debug("running kernel of size ({},{})", w, h);
+  spdlog::debug("running kernel of size ({},{})", wi, he);
 
-    dim3 dimBlock(bsize, bsize);
-    dim3 dimGrid(w, h);
-    raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, scene, u, v, C);
+  dim3 dimBlock(bsize, bsize);
+  dim3 dimGrid(wi, he);
+  raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, scene, u, v, C);
+  cudaDeviceSynchronize();
 
     //if (cudaPeekAtLastError())
       //abortError("Computation Error");
-  }
 
   // Copy back to main memory
   cudaMemcpy2D(buffer, stride, devBuffer, pitch, width * sizeof(struct color), height, cudaMemcpyDeviceToHost);
+  printf("mem copy");
   //if (rc)
     //abortError("Unable to copy buffer back to memory");
 

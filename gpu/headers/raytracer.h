@@ -3,6 +3,6 @@
 
 #include "scene.h"
 
-void raytrace(const scene &scene, struct color *output, int aliasing = 1 /* 2 for x4, 4 for x16... */);
+void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t stride);
 
 #endif /* RAYTRACER_H */
