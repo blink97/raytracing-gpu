@@ -22,6 +22,8 @@ int main(int argc, char *argv[])
   struct scene scene = parser(argv[1]);
   struct color output[(scene.camera.width + 1) * (scene.camera.height + 1)];
 
+  struct scene cuda_scene = to_cuda(&scene);
+
   raytrace(scene, output);
 
   FILE *out = open_output(argv[2], scene.camera.width, scene.camera.height);
