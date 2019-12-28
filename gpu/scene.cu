@@ -82,7 +82,8 @@ struct scene empty_scene()
     .object_count = 0,
     .lights = nullptr,
     .light_count = 0,
-    .camera = {/* Use default init */}
+    .camera = {/* Use default init */},
+    .triangle_count = 0,
   };
 
   return scene;
@@ -106,18 +107,12 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles)
 
 #  elif defined(LAYOUT_AOS)
 
-  uint32_t global_nb_triangles = 0;
-  for (int i = 0; i < scene->object_count; ++i)
-  {
-    global_nb_triangles += scene->objects[i].triangle_count;
-  }
-
   // Extend the global triangles storage
   vector3 *old_ptr = scene->objects_data.vertex_and_normal;
 
   scene->objects_data.vertex_and_normal = (vector3 *)realloc(
     scene->objects_data.vertex_and_normal,
-    sizeof(vector3) * 6/* 3 vertex and 3 normal */ * (global_nb_triangles + nb_triangles)
+    sizeof(vector3) * 6/* 3 vertex and 3 normal */ * (scene->triangle_count + nb_triangles)
   );
 
   if (old_ptr != scene->objects_data.vertex_and_normal)
@@ -131,18 +126,12 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles)
 
 #  else /* LAYOUT_SOA */
 
-  uint32_t global_nb_triangles = 0;
-  for (int i = 0; i < scene->object_count; ++i)
-  {
-    global_nb_triangles += scene->objects[i].triangle_count;
-  }
-
   vector3 *old_vertex_ptr = scene->objects_data.vertex;
   vector3 *old_normal_ptr = scene->objects_data.normal;
 
   // Extend the global vertex and normal storage
-  scene->objects_data.vertex = (vector3 *)realloc(scene->objects_data.vertex, sizeof(vector3) * 3 * (global_nb_triangles + nb_triangles));
-  scene->objects_data.normal = (vector3 *)realloc(scene->objects_data.normal, sizeof(vector3) * 3 * (global_nb_triangles + nb_triangles));
+  scene->objects_data.vertex = (vector3 *)realloc(scene->objects_data.vertex, sizeof(vector3) * 3 * (scene->triangle_count + nb_triangles));
+  scene->objects_data.normal = (vector3 *)realloc(scene->objects_data.normal, sizeof(vector3) * 3 * (scene->triangle_count + nb_triangles));
 
   if (old_vertex_ptr != scene->objects_data.vertex || old_normal_ptr != scene->objects_data.normal)
   {// Rewrite the pointers as it may have changed.
@@ -150,8 +139,8 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles)
   }
 
   struct triangles_layout triangles = {
-    .vertex = &scene->objects_data.vertex[global_nb_triangles * 3],
-    .normal = &scene->objects_data.normal[global_nb_triangles * 3]
+    .vertex = &scene->objects_data.vertex[scene->triangle_count * 3],
+    .normal = &scene->objects_data.normal[scene->triangle_count * 3]
   };
 
 #  endif
@@ -170,8 +159,12 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles)
     .d = 1
   };
 
-  struct object *current_object = &scene->objects[scene->object_count++/* Increase the count after assigning */];
+  struct object *current_object = &scene->objects[scene->object_count];
   *current_object = new_object;
+
+  scene->object_count++;
+  scene->triangle_count += nb_triangles;
+
   return current_object;
 }
 
@@ -217,9 +210,7 @@ struct scene to_cuda(const struct scene *const scene)
   // Copy the global vertex and normal array,
   // and rewrite the objects triangles pointers.
 
-  size_t mem_size = sizeof(vector3) * 6 // Include the last triangle size
-                  + scene->objects[scene->object_count].triangles.data// Take the array end (excluding last triangles)
-                  - scene->objects_data.vertex_and_normal;// Take the array start
+  size_t mem_size = sizeof(vector3) * 6 * scene->triangle_count;
 
   cudaMalloc(&cuda_scene.objects_data.vertex_and_normal, mem_size);
   cudaMemcpy(
@@ -237,9 +228,7 @@ struct scene to_cuda(const struct scene *const scene)
   // Copy the globals vertex and normal arrays,
   // and rewrite the objects triangles pointers.
 
-  size_t mem_size = sizeof(vector3) * 3 // Include the last triangle size
-                  + scene->objects[scene->object_count].triangles.vertex// Take the array end (excluding last triangles)
-                  - scene->objects_data.vertex;// Take the array start
+  size_t mem_size = sizeof(vector3) * 3 * scene->triangle_count;
 
   cudaMalloc(&cuda_scene.objects_data.vertex, mem_size);
   cudaMalloc(&cuda_scene.objects_data.normal, mem_size);

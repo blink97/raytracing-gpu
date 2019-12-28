@@ -139,12 +139,14 @@ struct scene {
    * accessed as they can change based on the layout.
    */
   struct scene_objects_additional_data objects_data;
-
   struct object *objects;
   size_t object_count;
   struct light *lights;
   size_t light_count;
   struct camera camera;
+  // Have the global triangle count pre-computed to prevents
+  // recomputing it each times.
+  size_t triangle_count;
 };
 
 #endif /* !SCENE_H */
