@@ -35,6 +35,7 @@ FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(CLI11)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
+find_package(PNG REQUIRED)
 find_package(CUDA REQUIRED)
 include_directories("${CUDA_INCLUDE_DIRS}") #To allows cuda type definition in .cpp file
 
@@ -49,7 +50,7 @@ include_directories(headers)
 target_compile_features(renderer PUBLIC cxx_std_14)
 target_link_libraries(renderer PRIVATE spdlog::spdlog)
 
-target_sources(renderer PRIVATE colors.cpp hit.cpp light.cpp parse_obj.cpp parser.cpp printer.cpp scene.cu ray.cpp raytracer.cpp thread_arg.cpp vector3-extern.cpp vector3.cpp)
+target_sources(renderer PRIVATE colors.cu hit.cu light.cu parse_obj.cpp parser.cpp printer.cpp scene.cu ray.cu raytracer.cu thread_arg.cpp vector3-extern.cu vector3.cu)
 set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 

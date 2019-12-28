@@ -1,7 +1,7 @@
 #include "ray.h"
 #include "vector3.h"
 
-struct ray init_ray(void)
+__host__ __device__ struct ray init_ray(void)
 {
   struct ray ret;
   ret.origin.x = 0;
@@ -13,7 +13,7 @@ struct ray init_ray(void)
   return ret;
 }
 
-struct ray ray_bounce(struct ray ray, struct ray normal)
+__host__ __device__ struct ray ray_bounce(struct ray ray, struct ray normal)
 {
   struct ray ret;
   ret.origin = normal.origin;

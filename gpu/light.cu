@@ -4,7 +4,7 @@
 #include "light.h"
 #include "hit.h"
 
-static void apply_specular(struct color *color, struct ray incident,
+__host__ __device__ static void apply_specular(struct color *color, struct ray incident,
                            struct ray normal, struct object obj)
 {
   struct color kcolor = init_color(obj.ks.x, obj.ks.y, obj.ks.z);
@@ -21,7 +21,7 @@ static void apply_specular(struct color *color, struct ray incident,
   *color = color_add(*color, kcolor);
 }
 
-static int has_direct_hit(struct scene scene, struct ray light_ray)
+__host__ __device__ static int has_direct_hit(struct scene scene, struct ray light_ray)
 {
   float fdist = collide_dist(scene, light_ray);
   if (fdist < 1)
@@ -30,7 +30,7 @@ static int has_direct_hit(struct scene scene, struct ray light_ray)
   return 1;
 }
 
-struct color apply_light(struct scene scene, struct object object,
+__host__ __device__ struct color apply_light(struct scene scene, struct object object,
                          struct ray point)
 {
   struct color color = init_color(0, 0, 0);
