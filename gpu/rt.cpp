@@ -4,10 +4,20 @@
 #include "parser.h"
 #include "printer.h"
 
+#include <iostream>
+
 int main(int argc, char *argv[])
 {
   if (argc != 3)
     errx(1, "usage: %s file.svati output.ppm", argv[0]);
+
+#  if defined(LAYOUT_FRAGMENTED)
+  std::cout << "Using fragmented layout" << std::endl;
+#  elif defined(LAYOUT_AOS)
+  std::cout << "Using array of structures (AOS) layout" << std::endl;
+#  else /* LAYOUT_SOA */
+  std::cout << "Using structure of arrays (SOA) layout" << std::endl;
+#  endif
 
   struct scene scene = parser(argv[1]);
   struct color output[(scene.camera.width + 1) * (scene.camera.height + 1)];

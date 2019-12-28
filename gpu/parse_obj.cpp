@@ -55,8 +55,8 @@ void parse_object(FILE *file, struct scene *scene)
   {
     for (int j = 0; j < 3; j++)
     {
-      get_vertex(object, i)[j] = v.top(); v.pop();
-      get_normal(object, i)[j] = vn.top(); vn.pop();
+      get_vertex(object->triangles, i)[j] = v.top(); v.pop();
+      get_normal(object->triangles, i)[j] = vn.top(); vn.pop();
     }
   }
 }

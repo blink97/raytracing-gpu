@@ -63,11 +63,7 @@ struct light parse_p_light(FILE *file)
 
 struct scene parser(const char *path)
 {
-  struct scene scene;
-  scene.object_count = 0;
-  scene.light_count = 0;
-  scene.objects = (struct object *)malloc(sizeof (struct object));
-  scene.lights = (struct light *)malloc(sizeof (struct light));
+  struct scene scene = empty_scene();
 
   FILE *svati = fopen(path, "r");
   if (!svati)

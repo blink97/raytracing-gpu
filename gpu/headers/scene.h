@@ -35,6 +35,11 @@ struct object;
 struct scene;
 
 /*
+ * Get an empty scene that can be used whatever is the memory layout used.
+ */
+struct scene empty_scene();
+
+/*
  * Add another object with the given triangle count to the scene.
  * The object is returned so that vertex and normal can be set.
  */
@@ -52,23 +57,73 @@ struct scene to_cuda(const struct scene *const scene);
  * to allows simple change.
  * Those functions can be used both by the host and device code.
  */
-__host__ __device__ vector3 *get_vertex(const struct object *const object, uint32_t triangle_index);
-__host__ __device__ vector3 *get_normal(const struct object *const object, uint32_t triangle_index);
+__host__ __device__ vector3 *get_vertex(const struct triangles_layout triangles, uint32_t triangle_index);
+__host__ __device__ vector3 *get_normal(const struct triangles_layout triangles, uint32_t triangle_index);
 
 /* Layout dependent code */
 # if defined(LAYOUT_FRAGMENTED)
 
+struct triangles_layout {
+  /*
+   * Contains vertex[3], followed by normal[3], repeated triangle_count times.
+   * Each data pointer is a new allocation.
+   */
+  vector3 *data;
+};
+
+struct scene_objects_additional_data {
+  /* No more additionnal data */
+};
+
 # elif defined(LAYOUT_AOS)
 
+struct triangles_layout {
+  /*
+   * Contains vertex[3], followed by normal[3], repeated triangle_count times.
+   * Each data pointer is a not an allocation,
+   * but a pointer of allocated memory in the scene
+   * (reduce global fragmentation).
+   */
+  vector3 *data;
+};
+
+struct scene_objects_additional_data {
+  // The global array of vertex and normal
+  // to reduce memory fragmentation
+  vector3 *vertex_and_normal;
+};
+
 # else /* LAYOUT_SOA */
+
+struct triangles_layout {
+  /*
+   * Contains vertex[3] and normal[3] separately, each repeated triangle_count times.
+   * Each data pointer is a not an allocation,
+   * but a pointer of allocated memory in the scene
+   * (reduce global fragmentation).
+   */
+  vector3 *vertex;
+  vector3 *normal;
+};
+
+struct scene_objects_additional_data {
+  // The allocated arrays of normal and vertex that
+  // each triangles reference.
+  vector3 *vertex;
+  vector3 *normal;
+};
 
 # endif
 /* End of layout dependent code */
 
 struct object {
-  // Contains vertex[3], directly followed by normal[3], repeated triangle_count times.
-  vector3 *vertex_and_normal;
-  unsigned triangle_count;
+  /*
+   * Fields of this structures must not be accessed directly,
+   * as they can change with the layout used.
+   */
+  struct triangles_layout triangles;
+
+  uint32_t triangle_count;
   vector3 ka;// Ambient color
   vector3 kd;// Directional / point color
   vector3 ks;// Specular color
@@ -79,6 +134,12 @@ struct object {
 };
 
 struct scene {
+  /*
+   * Fields of this structure must not be directly
+   * accessed as they can change based on the layout.
+   */
+  struct scene_objects_additional_data objects_data;
+
   struct object *objects;
   size_t object_count;
   struct light *lights;

@@ -1,3 +1,4 @@
 *.o
 build/
-gpu/Makefile #CMakeLists.txt is used instead
+#CMakeLists.txt is used instead
+gpu/Makefile

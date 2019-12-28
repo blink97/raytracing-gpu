@@ -53,7 +53,7 @@ static struct ray triangle_collide(struct object object, struct ray ray)
     vector3 normal;
     int has_intersected = ray_intersect(
       ray,
-      get_vertex(&object, i), get_normal(&object, i),
+      get_vertex(object.triangles, i), get_normal(object.triangles, i),
       &out, &normal
     );
 

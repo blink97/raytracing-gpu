@@ -1,6 +1,11 @@
 cmake_minimum_required (VERSION 3.13.4)
 project (GPGPU CUDA CXX)
 
+# Enable only one of them to set the layout used.
+#add_compile_definitions(LAYOUT_FRAGMENTED)
+#add_compile_definitions(LAYOUT_AOS)
+add_compile_definitions(LAYOUT_SOA)
+
 include(FetchContent)
 
 FetchContent_Declare(
