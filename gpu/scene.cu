@@ -30,18 +30,6 @@ __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles,
   return &triangles.data[triangle_index * 6 + 3/* Skip the vertex part */];
 }
 
-/**
- * Rewrite the triangles pointers so that they point to the correct position
- */
-static void rewrite_pointers(const struct scene *scene)
-{
-  size_t offset = 0;
-  for (uint32_t i = 0; i < scene->object_count; ++i)
-  {
-    scene->objects[i].triangles.data = scene->objects_data.vertex_and_normal + offset;
-    offset += 6 * scene->objects[i].triangle_count;
-  }
-}
 
 # else /* LAYOUT_SOA */
 
@@ -57,6 +45,9 @@ __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles,
 }
 
 
+# endif
+/* End of layout dependent code */
+
 /**
  * Rewrite the triangles pointers so that they point to the correct position
  */
@@ -65,14 +56,47 @@ static void rewrite_pointers(const struct scene *scene)
   size_t offset = 0;
   for (uint32_t i = 0; i < scene->object_count; ++i)
   {
-    scene->objects[i].triangles.vertex = scene->objects_data.vertex + offset;
-    scene->objects[i].triangles.normal = scene->objects_data.normal + offset;
-    offset += 3 * scene->objects[i].triangle_count;
+    // Get the object back on the CPU
+    struct object current_object;
+
+    cudaMemcpy(
+      &current_object,
+      scene->objects + i,
+      sizeof(struct object),
+      cudaMemcpyDefault
+    );
+
+      /* Layout dependent code */
+#  if defined(LAYOUT_FRAGMENTED)
+
+    /* Nothing to do here */
+
+#  elif defined(LAYOUT_AOS)
+
+    current_object.triangles.data = scene->objects_data.vertex_and_normal + offset;
+
+    offset += 6 * current_object.triangle_count;
+
+#  else /* LAYOUT_SOA */
+
+    current_object.triangles.vertex = scene->objects_data.vertex + offset;
+    current_object.triangles.normal = scene->objects_data.normal + offset;
+
+    offset += 3 * current_object.triangle_count;
+
+#  endif
+  /* End of layout dependent code */
+
+    // Replace the object at it's current location
+    cudaMemcpy(
+      scene->objects + i,
+      &current_object,
+      sizeof(struct object),
+      cudaMemcpyDefault
+    );
   }
 }
 
-# endif
-/* End of layout dependent code */
 
 struct scene empty_scene()
 {
@@ -121,7 +145,7 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles)
   }
 
   struct triangles_layout triangles = {
-    .data = &scene->objects_data.vertex_and_normal[global_nb_triangles * 6]
+    .data = &scene->objects_data.vertex_and_normal[scene->triangle_count * 6]
   };
 
 #  else /* LAYOUT_SOA */
@@ -180,7 +204,8 @@ struct scene to_cuda(const struct scene *const scene)
     .object_count = scene->object_count,
     .lights = nullptr,
     .light_count = scene->light_count,
-    .camera = scene->camera
+    .camera = scene->camera,
+    .triangle_count = scene->triangle_count,
   };
 
   cudaMalloc(&cuda_scene.objects, sizeof(struct object) * cuda_scene.object_count);
@@ -196,11 +221,23 @@ struct scene to_cuda(const struct scene *const scene)
   for (uint32_t i = 0; i < scene->object_count; ++i)
   {
     size_t mem_size = sizeof(vector3) * 6 /* 3 vertex and 3 normal */ * scene->objects[i].triangle_count;
-    cudaMalloc(&cuda_scene.objects[i].triangles.data, mem_size);
+
+    struct object current_object = scene->objects[i];
+    cudaMalloc(&current_object.triangles.data, mem_size);
+
+    // Copy the triangle
     cudaMemcpy(
-      cuda_scene.objects[i].triangles.data,
+      current_object.triangles.data,
       scene->objects[i].triangles.data,
       mem_size,
+      cudaMemcpyHostToDevice
+    );
+
+    // Copy the object back to GPU
+    cudaMemcpy(
+      &cuda_scene.objects[i],
+      &current_object,
+      sizeof(struct object),
       cudaMemcpyHostToDevice
     );
   }
