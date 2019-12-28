@@ -7,7 +7,7 @@ struct ray {
   vector3 direction;
 };
 
-struct ray init_ray(void);
-struct ray ray_bounce(struct ray ray, struct ray normal);
+__host__ __device__ struct ray init_ray(void);
+__host__ __device__ struct ray ray_bounce(struct ray ray, struct ray normal);
 
 #endif /* !RAY_H */

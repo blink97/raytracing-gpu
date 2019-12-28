@@ -3,7 +3,7 @@
 #include "raytracer.cu"
 #include "parser.h"
 #include "printer.h"
-#include "color.h"
+#include "colors.h"
 
 #include <iostream>
 
