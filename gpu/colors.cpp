@@ -1,6 +1,6 @@
 #include "colors.h"
 
-struct color init_color(float r, float g, float b)
+__device__ struct color init_color(float r, float g, float b)
 {
   struct color ret;
   ret.r = r * 255;
@@ -21,7 +21,7 @@ struct color init_color(float r, float g, float b)
   return ret;
 }
 
-struct color color_add(struct color a, struct color b)
+__device__ struct color color_add(struct color a, struct color b)
 {
   a.r += b.r;
   if (a.r > 255)
@@ -35,12 +35,12 @@ struct color color_add(struct color a, struct color b)
   return a;
 }
 
-struct color color_mul(struct color a, float coef)
+__device__ struct color color_mul(struct color a, float coef)
 {
   return init_color(a.r / 255 * coef, a.g / 255 * coef, a.b / 255 * coef);
 }
 
-struct color color_mul2(struct color a, struct color b)
+__device__ struct color color_mul2(struct color a, struct color b)
 {
   return init_color((a.r / 255) * (b.r / 255),
                     (a.g / 255) * (b.g / 255),
