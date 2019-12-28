@@ -1,11 +1,13 @@
 #include <err.h>
+#include <png.h>
 
-#include "raytracer.cu"
+#include "raytracer.h"
 #include "parser.h"
 #include "printer.h"
 #include "colors.h"
 
 #include <iostream>
+#include <memory>
 
 void write_png(const std::byte* buffer,
                int width,
@@ -71,7 +73,6 @@ int main(int argc, char *argv[])
   auto buffer = std::make_unique<std::byte[]>(scene.camera.height * stride);
 
   render(scene, reinterpret_cast<char*>(buffer.get()), 1, stride);
-
   /*FILE *out = open_output(argv[2], scene.camera.width, scene.camera.height);
   for (int j = scene.camera.height; j > 0; j--)
   {
@@ -82,6 +83,5 @@ int main(int argc, char *argv[])
   }*/
 
   // Save
-  write_png(buffer.get(), width, height, stride, argv[2]);
-  spdlog::info("Output saved in {}.", filename);
+  write_png(buffer.get(), scene.camera.width, scene.camera.height, stride, argv[2]);
 }

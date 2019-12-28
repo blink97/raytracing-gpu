@@ -56,7 +56,7 @@ set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(rt rt.cpp)
 target_compile_features(rt PUBLIC cxx_std_17)
-target_link_libraries(rt PRIVATE spdlog::spdlog renderer)
+target_link_libraries(rt PRIVATE PNG::PNG spdlog::spdlog renderer)
 
 #add_executable(bench src/bench.cpp)
 #target_compile_features(bench PUBLIC cxx_std_17)
