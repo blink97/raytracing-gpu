@@ -1,16 +1,16 @@
 #include "hit.h"
 #include "vector3.h"
 
-static int ray_intersect(struct ray ray, struct triangle triangle,
+static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_normal,
                          vector3 *out, vector3 *normal)
 {
   const float EPSILON = 0.0000001;
-  vector3 vertex0 = triangle.vertex[0];
-  vector3 vertex1 = triangle.vertex[1];
-  vector3 vertex2 = triangle.vertex[2];
-  vector3 normal0 = vector3_normalize(triangle.normal[0]);
-  vector3 normal1 = vector3_normalize(triangle.normal[1]);
-  vector3 normal2 = vector3_normalize(triangle.normal[2]);
+  vector3 vertex0 = input_vertex[0];
+  vector3 vertex1 = input_vertex[1];
+  vector3 vertex2 = input_vertex[2];
+  vector3 normal0 = vector3_normalize(input_normal[0]);
+  vector3 normal1 = vector3_normalize(input_normal[1]);
+  vector3 normal2 = vector3_normalize(input_normal[2]);
   vector3 edge1, edge2, h, s, q;
   float a, f, u, v;
   edge1 = vector3_sub(vertex1, vertex0);
@@ -51,8 +51,12 @@ static struct ray triangle_collide(struct object object, struct ray ray)
   {
     vector3 out;
     vector3 normal;
-    int has_intersected = ray_intersect(ray, object.triangles[i], &out,
-                                        &normal);
+    int has_intersected = ray_intersect(
+      ray,
+      get_vertex(&object, i), get_normal(&object, i),
+      &out, &normal
+    );
+
     if (has_intersected)
     {
       float new_dist = vector3_length(vector3_sub(out, ray.origin));

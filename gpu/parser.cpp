@@ -66,8 +66,9 @@ struct scene parser(const char *path)
   struct scene scene;
   scene.object_count = 0;
   scene.light_count = 0;
-  struct object *objects = (struct object *)malloc(sizeof (struct object));
-  struct light *lights = (struct light *)malloc(sizeof (struct light));
+  scene.objects = (struct object *)malloc(sizeof (struct object));
+  scene.lights = (struct light *)malloc(sizeof (struct light));
+
   FILE *svati = fopen(path, "r");
   if (!svati)
     errx(1, "%s\n", strerror(errno));
@@ -83,36 +84,32 @@ struct scene parser(const char *path)
     {
       struct light a_light = parse_a_light(svati);
       scene.light_count++;
-      lights = (struct light *)realloc(lights, sizeof (struct light) * scene.light_count);
-      lights[scene.light_count - 1] = a_light;
+      scene.lights = (struct light *)realloc(scene.lights, sizeof (struct light) * scene.light_count);
+      scene.lights[scene.light_count - 1] = a_light;
     }
     else if (strcmp(instruction, "p_light") == 0)
     {
       struct light p_light = parse_p_light(svati);
       scene.light_count++;
-      lights = (struct light *)realloc(lights, sizeof (struct light) * scene.light_count);
-      lights[scene.light_count - 1] = p_light;
+      scene.lights = (struct light *)realloc(scene.lights, sizeof (struct light) * scene.light_count);
+      scene.lights[scene.light_count - 1] = p_light;
     }
     else if (strcmp(instruction, "d_light") == 0)
     {
       struct light d_light = parse_d_light(svati);
       scene.light_count++;
-      lights = (struct light *)realloc(lights, sizeof (struct light) * scene.light_count);
-      lights[scene.light_count - 1] = d_light;
+      scene.lights = (struct light *)realloc(scene.lights, sizeof (struct light) * scene.light_count);
+      scene.lights[scene.light_count - 1] = d_light;
     }
     else if (strcmp(instruction, "object") == 0)
     {
-      struct object object = parse_object(svati);
-      scene.object_count++;
-      objects = (struct object *)realloc(objects, sizeof (struct object) * scene.object_count);
-      objects[scene.object_count - 1] = object;
+      parse_object(svati, &scene);
     }
     else if (strcmp(instruction, "#") == 0)
       fscanf(svati, " %[^\n]", instruction);
     else
       errx(1, "Error during the parsing %s\n", instruction);
   }
-  scene.objects = objects;
-  scene.lights = lights;
+
   return scene;
 }

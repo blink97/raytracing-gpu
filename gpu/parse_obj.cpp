@@ -5,7 +5,6 @@
 # include <err.h>
 # include <stack>
 
-
 vector3 create_vec(FILE *file)
 {
   vector3 vec;
@@ -13,45 +12,36 @@ vector3 create_vec(FILE *file)
   return vec;
 }
 
-struct object parse_object(FILE *file)
+void parse_object(FILE *file, struct scene *scene)
 {
-  struct object object = {
-    .triangles = nullptr,
-    .triangle_count = 0,
-    .ka = { .x = 0, .y = 0, .z = 0 },
-    .kd = { .x = 0, .y = 0, .z = 0 },
-    .ks = { .x = 0, .y = 0, .z = 0 },
-    .ns = 0,
-    .ni = 1,
-    .nr = 0,
-    .d = 1
-  };
+  uint32_t vertex_count;
+  (void)fscanf(file, "%u", &vertex_count);
 
-  (void)fscanf(file, "%u", &object.triangle_count);
+  struct object *object = add_object_to_scene(scene, vertex_count / 3);
 
   std::stack<vector3> v;
   std::stack<vector3> vn;
 
   char argument[10];
 
-  while ((v.size() < object.triangle_count || vn.size() < object.triangle_count) &&
+  while ((v.size() < vertex_count || vn.size() < vertex_count/* Same amount of normal as vertex */) &&
          fscanf(file, "%s", argument) != EOF)
   {
     if (strcmp(argument, "Ka") == 0)
-      object.ka = create_vec(file);
+      object->ka = create_vec(file);
     else if (strcmp(argument, "Kd") == 0)
-      object.kd = create_vec(file);
+      object->kd = create_vec(file);
    else if (strcmp(argument, "Ks") == 0)
-      object.ks = create_vec(file);
+      object->ks = create_vec(file);
 
     else if (strcmp(argument, "Ns") == 0)
-      fscanf(file, "%f", &object.ns);
+      fscanf(file, "%f", &object->ns);
     else if (strcmp(argument, "Ni") == 0)
-      fscanf(file, "%f", &object.ni);
+      fscanf(file, "%f", &object->ni);
     else if (strcmp(argument, "Nr") == 0)
-      fscanf(file, "%f", &object.nr);
+      fscanf(file, "%f", &object->nr);
     else if (strcmp(argument, "d") == 0)
-      fscanf(file, "%f", &object.d);
+      fscanf(file, "%f", &object->d);
 
     else if (strcmp(argument, "v") == 0)
       v.push(create_vec(file));
@@ -61,19 +51,12 @@ struct object parse_object(FILE *file)
       errx(1, "Error during parsing %s\n", argument);
   }
 
-  object.triangle_count /= 3;
-  object.triangles = (struct triangle *)malloc(sizeof(struct triangle) * v.size());
-
-  for (unsigned int i = 0; i < object.triangle_count; ++i)
+  for (unsigned int i = 0; i < object->triangle_count; ++i)
   {
     for (int j = 0; j < 3; j++)
     {
-      object.triangles[i].vertex[j] = v.top();
-      object.triangles[i].normal[j] = vn.top();
-      v.pop();
-      vn.pop();
+      get_vertex(object, i)[j] = v.top(); v.pop();
+      get_normal(object, i)[j] = vn.top(); vn.pop();
     }
   }
-
-  return object;
 }
