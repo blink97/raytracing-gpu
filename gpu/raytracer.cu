@@ -6,12 +6,14 @@
 #include <stdlib.h>
 #include <spdlog/spdlog.h>
 
+#include "raytracer.h"
 #include "vector3.h"
 #include "ray.h"
 #include "colors.h"
 #include "hit.h"
 #include "light.h"
 #include "thread_arg.h"
+
 
 __device__ static struct color trace(struct scene scene, struct ray ray, float coef)
 {
@@ -32,26 +34,25 @@ __device__ static struct color trace(struct scene scene, struct ray ray, float c
 
 
 __global__ void raytrace(char* buff, int width, int height, size_t pitch,
-                         struct scene scene, vector3 u, vector3 v, vector3 C)
+                         struct scene* scene, vector3* u, vector3* v, vector3* C)
 {
+
   int px = blockDim.x * blockIdx.x + threadIdx.x;
   int py = blockDim.y * blockIdx.y + threadIdx.y;
-
-  printf("return\n");
 
   if (px >= width || py >= height)
     return;
 
   uint32_t* lineptr = (uint32_t*)(buff + py * pitch);
 
-  vector3 ui = vector3_scale(u, px);
-  vector3 vj = vector3_scale(v, py);
-  vector3 point = vector3_add(vector3_add(C, ui), vj);
-  vector3 direction = vector3_normalize(vector3_sub(scene.camera.position, point));
+  vector3 ui = vector3_scale(*u, px);
+  vector3 vj = vector3_scale(*v, py);
+  vector3 point = vector3_add(vector3_add(*C, ui), vj);
+  vector3 direction = vector3_normalize(vector3_sub(scene->camera.position, point));
   struct ray ray;
   ray.origin = point;
   ray.direction = direction;
-  struct color color = trace(scene, ray, 1);
+  struct color color = trace(*scene, ray, 1);
 
   lineptr[px] = *(uint32_t *)&color;
 }
@@ -89,7 +90,23 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
 
   dim3 dimBlock(bsize, bsize);
   dim3 dimGrid(wi, he);
-  raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, scene, u, v, C);
+
+  vector3* cuda_u;
+  cudaMalloc(&cuda_u, sizeof(vector3));
+  vector3* cuda_v;
+  cudaMalloc(&cuda_v, sizeof(vector3));
+  vector3* cuda_C;
+  cudaMalloc(&cuda_C, sizeof(vector3));
+
+  cudaMemcpy(cuda_u, &u, sizeof(vector3), cudaMemcpyHostToDevice);
+  cudaMemcpy(cuda_v, &v, sizeof(vector3), cudaMemcpyHostToDevice);
+  cudaMemcpy(cuda_C, &C, sizeof(vector3), cudaMemcpyHostToDevice);
+
+
+  struct scene* cuda_scene = to_cuda(&scene);
+  printf("lancement. %i %i %i %i.\n", wi, he, width, height);
+  raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
+  printf("done..\n");
   cudaDeviceSynchronize();
 
     //if (cudaPeekAtLastError())

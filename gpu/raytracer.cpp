@@ -29,7 +29,7 @@ static struct color trace(struct scene scene, struct ray ray, float coef)
   return init_color(0, 0, 0);
 }
 
-void raytrace(const scene &scene, struct color *output, int aliasing)
+void __raytrace(const scene &scene, struct color *output, int aliasing)
 {
   vector3 u = vector3_normalize(scene.camera.u);
   vector3 v = vector3_normalize(scene.camera.v);

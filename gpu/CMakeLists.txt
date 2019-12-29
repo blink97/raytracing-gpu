@@ -40,7 +40,7 @@ find_package(CUDA REQUIRED)
 include_directories("${CUDA_INCLUDE_DIRS}") #To allows cuda type definition in .cpp file
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wextra -Wall -I./headers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wextra -Wall -I./headers -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 
@@ -50,7 +50,24 @@ include_directories(headers)
 target_compile_features(renderer PUBLIC cxx_std_14)
 target_link_libraries(renderer PRIVATE spdlog::spdlog)
 
-target_sources(renderer PRIVATE colors.cu hit.cu light.cu parse_obj.cpp parser.cpp printer.cpp scene.cu ray.cu raytracer.cu thread_arg.cpp vector3-extern.cu vector3.cu)
+
+target_sources(renderer PRIVATE
+  colors.cu
+  hit.cu
+  light.cu
+  partitioning/aabb.cu
+  partitioning/octree.cu
+  parse_obj.cpp
+  parser.cpp
+  printer.cpp
+  scene.cu
+  ray.cu
+  raytracer.cu
+  thread_arg.cpp
+  vector3-extern.cu
+  vector3.cu
+)
+
 set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 
@@ -58,6 +75,10 @@ add_executable(rt rt.cpp)
 target_compile_features(rt PUBLIC cxx_std_17)
 target_link_libraries(rt PRIVATE PNG::PNG spdlog::spdlog renderer)
 
-add_executable(bench bench.cpp)
-target_compile_features(bench PUBLIC cxx_std_17)
+add_executable(bench bench.cu)
+target_compile_features(bench PUBLIC cxx_std_14)
 target_link_libraries(bench PRIVATE spdlog::spdlog benchmark renderer)
+
+add_executable(test test.cu)
+target_compile_features(test PUBLIC cxx_std_14)
+target_link_libraries(test PRIVATE spdlog::spdlog renderer)
