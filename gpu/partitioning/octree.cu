@@ -135,18 +135,18 @@ __global__ void position_object(
   // Compute the final position, position_min is used,
   // but position_min and position_max point to the same thing,
   // as the level is how many common bits they have in common.
-  uint8_t resulting_position_x = position_min_x | (0xFF << (8 - final_level));
-  uint8_t resulting_position_y = position_min_y | (0xFF << (8 - final_level));
-  uint8_t resulting_position_z = position_min_z | (0xFF << (8 - final_level));
+  uint8_t resulting_position_x = position_max_x & (0xFF << (8 - final_level));
+  uint8_t resulting_position_y = position_max_y & (0xFF << (8 - final_level));
+  uint8_t resulting_position_z = position_max_z & (0xFF << (8 - final_level));
 
   // Create the resulting position.
   octree_generation_position position = final_level;
   for (int i = 0; i < 8; ++i)
   {
     position <<= 3;
-    position |= (resulting_position_x & (1 << (7 - i)) ? 4 : 0);
-    position |= (resulting_position_y & (1 << (7 - i)) ? 2 : 0);
-    position |= (resulting_position_z & (1 << (7 - i)) ? 1 : 0);
+    position |= ((resulting_position_x & (1 << (7 - i))) != 0 ? 1 : 0);
+    position |= ((resulting_position_y & (1 << (7 - i))) != 0 ? 2 : 0);
+    position |= ((resulting_position_z & (1 << (7 - i))) != 0 ? 4 : 0);
   }
 
   // And save it

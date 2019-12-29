@@ -5,6 +5,7 @@
 #include "partitioning/octree.h"
 
 #include <iostream>
+#include <bitset>
 
 #define TESTS_PATH "../../tests/"
 
@@ -40,6 +41,8 @@ void display_cuda_scene(const struct scene *cuda_scene)
   std::cout << "cuda scene:" << std::endl;
   struct scene CPU_scene;
   cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
+  std::cout << "camera size: " << CPU_scene.camera.width << " " << CPU_scene.camera.height << std::endl;
 
   struct object *objects = new struct object[CPU_scene.object_count];
   cudaMemcpy(objects, CPU_scene.objects, sizeof(struct object) * CPU_scene.object_count, cudaMemcpyDefault);
@@ -95,7 +98,24 @@ void display_aabbs(const struct AABB *aabbs, size_t nb_objects)
   }
 
   cudaFreeHost(cpu_aabbs);
-  //delete[] cpu_aabbs;
+}
+
+void display_positions(const octree_generation_position *positions, size_t nb_objects)
+{
+  std::cout << "displaying positions" << std::endl;
+
+
+  octree_generation_position *cpu_positions;
+  cudaMallocHost(&cpu_positions, sizeof(octree_generation_position) * nb_objects);
+  cudaMemcpy(cpu_positions, positions, sizeof(octree_generation_position) * nb_objects, cudaMemcpyDefault);
+
+  for (int i = 0; i < nb_objects; ++i)
+  {
+    std::cout << "level: " << ((cpu_positions[i] & 0xFF000000) >> 24)
+              << " " << std::bitset<24>(cpu_positions[i]) << std::endl;
+  }
+
+  cudaFreeHost(cpu_positions);
 }
 
 void test_partitioning(const struct scene *cuda_scene)
@@ -143,6 +163,8 @@ void test_partitioning(const struct scene *cuda_scene)
   display_GPU_memory();
 
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, CPU_scene.object_count);
+  display_positions(positions, CPU_scene.object_count);
+
   cudaFree(resulting_scale);
   cudaFree(positions);
   cudaFree(aabbs);
@@ -161,7 +183,10 @@ int main(int argc, char *argv[])
 
   display_GPU_memory();
 
-  struct scene scene = parser(CUBE);
+  //struct scene scene = parser(CUBE);
+  //struct scene scene = parser(DARK_NIGHT);
+  struct scene scene = parser(ISLAND_SMOOTH);
+  //struct scene scene = parser(SPHERES);
 
   display_GPU_memory();
 
