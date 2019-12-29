@@ -23,18 +23,7 @@ struct AABB {
  * The given AABB array must have the same size
  * as the number of objects in the scene, as well
  * as being a GPU memory address.
- *
- * NOTE: this function is the only one expected
- * to be called by the user, all other functions
- * are only exported for benchamrking purpose.
  */
-void compute_bounding_box(const struct scene *const scene, struct AABB *aabbs);
-
-/*
- * All functions exported under this are only present
- * so that they can be benchmarked together.
- */
-
 __global__ void object_compute_bounding_box(const struct scene *const scene, struct AABB *aabbs);
 
 #endif /* !AABB_H */

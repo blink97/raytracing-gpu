@@ -8,12 +8,12 @@
 
 __host__ __device__ vector3 *get_vertex(const struct triangles_layout triangles, uint32_t triangle_index)
 {
-  return &triangles.data[triangle_index * 6];
+  return triangles.data + triangle_index * 6;
 }
 
 __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles, uint32_t triangle_index)
 {
-  return &triangles.data[triangle_index * 6 + 3/* Skip the vertex part */];
+  return triangles.data + triangle_index * 6 + 3/* Skip the vertex part */;
 }
 
 
@@ -22,12 +22,12 @@ __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles,
 
 __host__ __device__ vector3 *get_vertex(const struct triangles_layout triangles, uint32_t triangle_index)
 {
-  return &triangles.data[triangle_index * 6];
+  return triangles.data + triangle_index * 6;
 }
 
 __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles, uint32_t triangle_index)
 {
-  return &triangles.data[triangle_index * 6 + 3/* Skip the vertex part */];
+  return triangles.data + triangle_index * 6 + 3/* Skip the vertex part */;
 }
 
 
@@ -36,12 +36,12 @@ __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles,
 
 __host__ __device__ vector3 *get_vertex(const struct triangles_layout triangles, uint32_t triangle_index)
 {
-  return &triangles.vertex[triangle_index * 3];
+  return triangles.vertex + triangle_index * 3;
 }
 
 __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles, uint32_t triangle_index)
 {
-  return &triangles.normal[triangle_index * 3];
+  return triangles.normal + triangle_index * 3;
 }
 
 
@@ -196,7 +196,7 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles)
  * Get a new scene, containing only cuda memory so that
  * it can be used in a GPU context.
  */
-struct scene to_cuda(const struct scene *const scene)
+struct scene *to_cuda(const struct scene *const scene)
 {
   struct scene cuda_scene = {
     .objects_data = scene->objects_data,
@@ -287,5 +287,10 @@ struct scene to_cuda(const struct scene *const scene)
 
 #  endif
 
-  return cuda_scene;
+  // Copy the FULL scene to GPU memory
+  struct scene *GPU_cuda_scene;
+  cudaMalloc(&GPU_cuda_scene, sizeof(struct scene));
+  cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
+  return GPU_cuda_scene;
 }

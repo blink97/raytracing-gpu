@@ -39,7 +39,7 @@ find_package(CUDA REQUIRED)
 include_directories("${CUDA_INCLUDE_DIRS}") #To allows cuda type definition in .cpp file
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wextra -Wall -I./headers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wextra -Wall -I./headers -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 

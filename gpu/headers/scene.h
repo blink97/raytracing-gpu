@@ -49,7 +49,7 @@ struct object *add_object_to_scene(struct scene *scene, uint32_t nb_triangles);
  * Get a new scene, containing only cuda memory so that
  * it can be used in a GPU context.
  */
-struct scene to_cuda(const struct scene *const scene);
+struct scene* to_cuda(const struct scene *const scene);
 
 /*
  * The way to get vertex and normal depends on how

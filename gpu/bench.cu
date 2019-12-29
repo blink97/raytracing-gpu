@@ -37,17 +37,17 @@ FULL_BENCHMARK(BM_parser);
 void BM_aabb_object(benchmark::State& st, const char *filename)
 {
   struct scene scene = parser(filename);
-  struct scene cuda_scene = to_cuda(&scene);
+  struct scene *cuda_scene = to_cuda(&scene);
 
   struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * cuda_scene.object_count);
+  cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
 
   // Compute the boundign box per objects.
   dim3 threadsPerBlock(32);
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
 
   for (auto _ : st)
-    object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(&cuda_scene, aabbs);
+    object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
 
   cudaFree(aabbs);
 }
@@ -61,21 +61,22 @@ FULL_BENCHMARK(BM_aabb_object);
 void BM_find_scene_scale_basic(benchmark::State& st, const char *filename)
 {
   struct scene scene = parser(filename);
-  struct scene cuda_scene = to_cuda(&scene);
+  struct scene *cuda_scene = to_cuda(&scene);
 
-  // Compute the bounding box
-  struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * cuda_scene.object_count);
-  compute_bounding_box(&cuda_scene, aabbs);
-
-  // Compute the global scale
   dim3 threadsPerBlock(32);
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
 
-  struct AABB resulting_scale;
+  // Compute the bounding box
+  struct AABB *aabbs;
+  cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
+  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+
+  // Compute the global scale
+  struct AABB *resulting_scale;
+  cudaMalloc(&resulting_scale, sizeof(struct AABB));
 
   for (auto _ : st)
-    find_scene_scale_basic<<<numBlocks, threadsPerBlock>>>(aabbs, cuda_scene.object_count, &resulting_scale);
+    find_scene_scale_basic<<<numBlocks, threadsPerBlock>>>(aabbs, scene.object_count, resulting_scale);
 
   cudaFree(aabbs);
 }
@@ -89,21 +90,22 @@ FULL_BENCHMARK(BM_find_scene_scale_basic);
 void BM_find_scene_scale_shared(benchmark::State& st, const char *filename)
 {
   struct scene scene = parser(filename);
-  struct scene cuda_scene = to_cuda(&scene);
+  struct scene *cuda_scene = to_cuda(&scene);
 
-  // Compute the bounding box
-  struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * cuda_scene.object_count);
-  compute_bounding_box(&cuda_scene, aabbs);
-
-  // Compute the global scale
   dim3 threadsPerBlock(32);
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
 
-  struct AABB resulting_scale;
+  // Compute the bounding box
+  struct AABB *aabbs;
+  cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
+  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+
+  // Compute the global scale
+  struct AABB *resulting_scale;
+  cudaMalloc(&resulting_scale, sizeof(struct AABB));
 
   for (auto _ : st)
-    find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, cuda_scene.object_count, &resulting_scale);
+    find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, scene.object_count, resulting_scale);
 
   cudaFree(aabbs);
 }
@@ -116,25 +118,27 @@ FULL_BENCHMARK(BM_find_scene_scale_shared);
 void BM_position_object(benchmark::State& st, const char *filename)
 {
   struct scene scene = parser(filename);
-  struct scene cuda_scene = to_cuda(&scene);
+  struct scene *cuda_scene = to_cuda(&scene);
 
   dim3 threadsPerBlock(32);
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
 
   // Compute the bounding box
   struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * cuda_scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(&cuda_scene, aabbs);
+  cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
+  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
 
   // Compute the global scale
-  struct AABB resulting_scale;
-  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, cuda_scene.object_count, &resulting_scale);
+  struct AABB *resulting_scale;
+  cudaMalloc(&resulting_scale, sizeof(struct AABB));
+
+  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, scene.object_count, resulting_scale);
 
   octree_generation_position *positions;
-  cudaMalloc(&positions, sizeof(octree_generation_position) * cuda_scene.object_count);
+  cudaMalloc(&positions, sizeof(octree_generation_position) * scene.object_count);
 
   for (auto _ : st)
-    position_object<<<numBlocks, threadsPerBlock>>>(aabbs, &resulting_scale, positions, cuda_scene.object_count);
+    position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
 
   cudaFree(aabbs);
   cudaFree(positions);
