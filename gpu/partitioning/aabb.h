@@ -30,4 +30,11 @@ struct AABB {
  */
 void compute_bounding_box(const struct scene *const scene, struct AABB *aabbs);
 
+/*
+ * All functions exported under this are only present
+ * so that they can be benchmarked together.
+ */
+
+__global__ void object_compute_bounding_box(const struct scene *const scene, struct AABB *aabbs);
+
 #endif /* !AABB_H */

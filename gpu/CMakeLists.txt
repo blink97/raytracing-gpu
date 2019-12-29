@@ -49,7 +49,22 @@ include_directories(headers)
 target_compile_features(renderer PUBLIC cxx_std_14)
 target_link_libraries(renderer PRIVATE spdlog::spdlog)
 
-target_sources(renderer PRIVATE partitioning/aabb.cu colors.cpp hit.cpp light.cpp parse_obj.cpp parser.cpp printer.cpp scene.cu ray.cpp raytracer.cpp thread_arg.cpp vector3-extern.cpp vector3.cpp)
+target_sources(renderer PRIVATE
+  colors.cpp
+  hit.cpp
+  light.cpp
+  partitioning/aabb.cu
+  partitioning/octree.cu
+  parse_obj.cpp
+  parser.cpp
+  printer.cpp
+  scene.cu
+  ray.cpp
+  raytracer.cpp
+  thread_arg.cpp
+  vector3-extern.cpp
+  vector3.cpp
+)
 set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 
@@ -57,6 +72,6 @@ add_executable(rt rt.cpp)
 target_compile_features(rt PUBLIC cxx_std_17)
 target_link_libraries(rt PRIVATE spdlog::spdlog renderer)
 
-add_executable(bench bench.cpp)
-target_compile_features(bench PUBLIC cxx_std_17)
+add_executable(bench bench.cu)
+target_compile_features(bench PUBLIC cxx_std_14)
 target_link_libraries(bench PRIVATE spdlog::spdlog benchmark renderer)
