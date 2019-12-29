@@ -75,3 +75,7 @@ target_link_libraries(rt PRIVATE spdlog::spdlog renderer)
 add_executable(bench bench.cu)
 target_compile_features(bench PUBLIC cxx_std_14)
 target_link_libraries(bench PRIVATE spdlog::spdlog benchmark renderer)
+
+add_executable(test test.cu)
+target_compile_features(test PUBLIC cxx_std_14)
+target_link_libraries(test PRIVATE spdlog::spdlog renderer)

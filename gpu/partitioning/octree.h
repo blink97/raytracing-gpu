@@ -43,16 +43,47 @@ void create_octree(
  * so that they can be benchmarked together.
  */
 
+/*
+ * Contains the position of an object into a octree.
+ * This value contains two information:
+ *  - the level depth
+ *  - the position to consider
+ * They are layed like this: [depth 31-28][position 27-0]
+ * Laying them like this allows to sort them the wanted way,
+ * so that the range can be contructed without any problems.
+ */
+typedef uint32_t octree_generation_position;
+
+
+/*
+ * Find the scale of the scene, so that the rest
+ * of the algorithm can be done in the [0-1] cube,
+ * and rescale the octree back on creation.
+ */
 __global__ void find_scene_scale_basic(
-  const struct AABB *const aabb,
+  const struct AABB *const aabbs,
   size_t nb_objects,
   struct AABB *resulting_scale
 );
 
 __global__ void find_scene_scale_shared(
-  const struct AABB *const aabb,
+  const struct AABB *const aabbs,
   size_t nb_objects,
   struct AABB *resulting_scale
+);
+
+/*
+ * Get the position in the octree of all aabb,
+ * so that they can be stored without any problem.
+ * This only return the expected position of the object,
+ * without taking into account some optimisation,
+ * as going in the upper node if there is few vertex in it.
+ */
+__global__ void position_object(
+  const struct AABB *const aabbs,
+  const struct AABB *const scale,
+  octree_generation_position *positions,
+  size_t nb_objects
 );
 
 #endif /* !OCTREE_H */
