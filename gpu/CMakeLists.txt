@@ -75,6 +75,7 @@ add_executable(rt rt.cpp)
 target_compile_features(rt PUBLIC cxx_std_17)
 target_link_libraries(rt PRIVATE PNG::PNG spdlog::spdlog renderer)
 
+
 add_executable(bench bench.cu)
 target_compile_features(bench PUBLIC cxx_std_14)
 target_link_libraries(bench PRIVATE spdlog::spdlog benchmark renderer)

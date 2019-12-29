@@ -40,6 +40,8 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
   int px = blockDim.x * blockIdx.x + threadIdx.x;
   int py = blockDim.y * blockIdx.y + threadIdx.y;
 
+  printf("return\n");
+
   if (px >= width || py >= height)
     return;
 
@@ -86,6 +88,7 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
   int wi     = std::ceil((float)width / bsize);
   int he     = std::ceil((float)height / bsize);
 
+
   spdlog::debug("running kernel of size ({},{})", wi, he);
 
   dim3 dimBlock(bsize, bsize);
@@ -107,6 +110,7 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
   printf("lancement. %i %i %i %i.\n", wi, he, width, height);
   raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
   printf("done..\n");
+
   cudaDeviceSynchronize();
 
     //if (cudaPeekAtLastError())

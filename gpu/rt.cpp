@@ -73,11 +73,7 @@ int main(int argc, char *argv[])
   int stride = scene.camera.width * sizeof(struct color);
   auto buffer = std::make_unique<std::byte[]>(scene.camera.height * stride);
 
-//  struct color output[(scene.camera.width + 1) * (scene.camera.height + 1)];
-
-
-
-  render(scene, reinterpret_cast<char*>(buffer.get()), 1, (std::ptrdiff_t)(stride));
+  render(scene, reinterpret_cast<char*>(buffer.get()), 1, stride);
 
   /*FILE *out = open_output(argv[2], scene.camera.width, scene.camera.height);
   for (int j = scene.camera.height; j > 0; j--)
