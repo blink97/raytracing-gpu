@@ -49,8 +49,6 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
                          struct scene* scene, vector3* u, vector3* v, vector3* C)
 {
 
-  printf("test");
-
   int px = blockDim.x * blockIdx.x + threadIdx.x;
   int py = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -96,7 +94,7 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
     abortError("Fail buffer allocation");
 
   // Run the kernel with blocks of size 64 x 64
-  int bsize = 32;
+  int bsize = 16;
   int wi     = std::ceil((float)width / bsize);
   int he     = std::ceil((float)height / bsize);
 
