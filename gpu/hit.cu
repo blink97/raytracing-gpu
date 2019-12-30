@@ -1,7 +1,9 @@
+#include <cuda_runtime.h>
 #include "hit.h"
 #include "vector3.h"
 
-__host__ __device__ static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_normal,
+
+__device__ static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_normal,
                          vector3 *out, vector3 *normal)
 {
   const float EPSILON = 0.0000001;
@@ -43,7 +45,7 @@ __host__ __device__ static int ray_intersect(struct ray ray, vector3 *input_vert
   return 0;
 }
 
-__host__ __device__ static struct ray triangle_collide(struct object object, struct ray ray)
+__device__ static struct ray triangle_collide(struct object object, struct ray ray)
 {
   float distance = 0;
   struct ray ret = init_ray();
@@ -73,13 +75,13 @@ __host__ __device__ static struct ray triangle_collide(struct object object, str
   return ret;
 }
 
-__host__ __device__ struct ray collide(struct scene scene, struct ray ray, struct object *obj)
+__device__ struct ray collide(struct scene* scene, struct ray ray, struct object* obj)
 {
   float distance = 0;
   struct ray ret = init_ray();
-  for (size_t i = 0; i < scene.object_count; i++)
+  for (size_t i = 0; i < scene->object_count; i++)
   {
-    struct ray new_ray = triangle_collide(scene.objects[i], ray);
+    struct ray new_ray = triangle_collide(scene->objects[i], ray);
     if (!vector3_is_zero(new_ray.direction))
     {
       float new_dist = vector3_length(vector3_sub(new_ray.origin, ray.origin));
@@ -87,22 +89,45 @@ __host__ __device__ struct ray collide(struct scene scene, struct ray ray, struc
       {
         distance = new_dist;
         ret = new_ray;
-        *obj = scene.objects[i];
+        *obj = scene->objects[i];
       }
     }
   }
   return ret;
 }
 
-__host__ __device__ float collide_dist(struct scene scene, struct ray ray)
+__device__ float3 operator+(const float3 &a, const float3 &b) {
+
+  return make_float3(a.x+b.x, a.y+b.y, a.z+b.z);
+
+}
+
+__device__ float3 operator-(const float3 &a, const float3 &b) {
+
+  return make_float3(a.x-b.x, a.y-b.y, a.z-b.z);
+
+}
+
+
+__device__ float operator~(const float3 &a) {
+	return sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+}
+
+
+__device__ float collide_dist(struct scene* scene, struct ray ray)
 {
   float distance = 0;
-  for (size_t i = 0; i < scene.object_count; i++)
+  for (size_t i = 0; i < scene->object_count; i++)
   {
-    struct ray new_ray = triangle_collide(scene.objects[i], ray);
+    struct ray new_ray = triangle_collide(scene->objects[i], ray);
     if (!vector3_is_zero(new_ray.direction))
     {
-      float new_dist = vector3_length(vector3_sub(new_ray.origin, ray.origin));
+//    	make_float3(new_ray.origin.x - ray.origin.x, new_ray.origin.y - ray.origin.y, new_ray.origin.z - ray.origin.z);
+    	auto res = new_ray.origin - ray.origin;
+//    	vector3_sub(ray.origin, ray.origin);
+//    	float new_dist = vector3_length(res);
+    	float new_dist = ~res;
+
       if (new_dist > 0.01 && (new_dist < distance || distance == 0))
       {
         distance = new_dist;

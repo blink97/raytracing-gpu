@@ -1,10 +1,15 @@
+#include <cuda_runtime.h>
 #include <stdio.h>
 #include <math.h>
 
 #include "light.h"
 #include "hit.h"
 
-__host__ __device__ static void apply_specular(struct color *color, struct ray incident,
+__device__ static float cufmax(float a, float b) {
+	return a > b ? a : b;
+}
+
+__device__ static void apply_specular(struct color *color, struct ray incident,
                            struct ray normal, struct object obj)
 {
   struct color kcolor = init_color(obj.ks.x, obj.ks.y, obj.ks.z);
@@ -16,12 +21,12 @@ __host__ __device__ static void apply_specular(struct color *color, struct ray i
                                               incident.direction)));
   R = vector3_normalize(R);
   V = vector3_normalize(V);
-  float Ls = pow(fmax(vector3_dot(R, V), 0.0), obj.ns);
-  kcolor = color_mul(kcolor, Ls);
-  *color = color_add(*color, kcolor);
+  float Ls = pow(cufmax(vector3_dot(R, V), 0.0), obj.ns);
+  kcolor = color_mul(&kcolor, Ls);
+  *color = color_add(color, &kcolor);
 }
 
-__host__ __device__ static int has_direct_hit(struct scene scene, struct ray light_ray)
+__device__ static int has_direct_hit(struct scene* scene, struct ray light_ray)
 {
   float fdist = collide_dist(scene, light_ray);
   if (fdist < 1)
@@ -30,20 +35,33 @@ __host__ __device__ static int has_direct_hit(struct scene scene, struct ray lig
   return 1;
 }
 
-__host__ __device__ struct color apply_light(struct scene scene, struct object object,
+
+//__device__ struct color operator*(struct color* a, struct color* b) {
+//	return init_color((float(a.r) / 255.0f) * (float(b.r) / 255.0f),
+//	                    (float(a.g) / 255.0f) * (float(b.g) / 255.0f),
+//	                    (float(a.b) / 255.0f) * (float(b.b) / 255.0f));
+//}
+
+//__host__ __device__ struct color operator*(struct color &a, const float coef) {
+//	return init_color(float(a.r) / 255 * coef, float(a.g) / 255 * coef, float(a.b) / 255 * coef);
+//}
+
+
+__device__ struct color apply_light(struct scene* scene, struct object* object,
                          struct ray point)
 {
   struct color color = init_color(0, 0, 0);
-  for (size_t i = 0; i < scene.light_count; i++)
+   for (size_t i = 0; i < scene->light_count; i++)
   {
-    struct light light = scene.lights[i];
+    struct light light = scene->lights[i];
     switch (light.type)
     {
       case AMBIENT:
         {
-          struct color tmp = color_mul2(init_color(light.r, light.g, light.b),
-                             init_color(object.ka.x, object.ka.y, object.ka.z));
-          color = color_add(color, tmp);
+//          struct color tmp = color_mul2(init_color(light.r, light.g, light.b),
+//                             init_color(object.ka.x, object.ka.y, object.ka.z));
+//
+//          color = color_add(color, tmp);
           break;
         }
       case DIRECTIONAL:
@@ -51,44 +69,65 @@ __host__ __device__ struct color apply_light(struct scene scene, struct object o
           struct ray light_ray;
           light_ray.origin = point.origin;
           light_ray.direction = vector3_scale(light.v, -1);
+
           if (!has_direct_hit(scene, light_ray))
           {
-            vector3 L = vector3_scale(light.v, -1);
-            vector3 N = point.direction;
-            struct color tmp = color_mul2(init_color(light.r, light.g, light.b),
-                             init_color(object.kd.x, object.kd.y, object.kd.z));
-            tmp = color_mul(tmp, vector3_dot(L, N));
-            light_ray.direction = light.v;
-            light_ray.origin = vector3_add(light_ray.origin,
-                                           vector3_scale(light_ray.direction,
-                                                         -10));
-            apply_specular(&tmp, light_ray, point, object);
-            color = color_add(color, tmp);
+//            vector3 L = vector3_scale(light.v, -1);
+            vector3 L = make_float3(
+            	    -1 * light.v.x,
+            	    -1 * light.v.y,
+            	    -1 * light.v.z
+            	  );
+//            vector3 N = point.direction;
+
+//            struct color b = init_color(object.kd.x, object.kd.y + 1, object.kd.z + 1);
+//
+//
+            struct color tmp = init_color((float)object->kd.x * light.r,
+            		(float)object->kd.y * light.g,
+            		(float)object->kd.z * light.b);
+
+//            struct color tmp = init_color(light.r + 1, light.g + 1, light.b + 1);
+//            struct color tmp = color_mul2(init_color(light.r, light.g, light.b),
+//                             init_color(object.kd.x, object.kd.y, object.kd.z));
+
+
+//            tmp = color_mul(tmp, vector3_dot(L, N));
+            float v_dot = L.x * point.direction.x + L.y * point.direction.y + L.z * point.direction.z;
+
+            tmp = init_color(tmp.r * v_dot, tmp.g * v_dot, tmp.b * v_dot);
+
+//            light_ray.direction = light.v;
+//            light_ray.origin = vector3_add(light_ray.origin,
+//                                           vector3_scale(light_ray.direction,
+//                                                         -10));
+//            apply_specular(&tmp, light_ray, point, object);
+//            color = color_add(color, tmp);
           }
           break;
         }
       case POINT:
         {
-          vector3 L = vector3_scale(light.v, -1);
-          vector3 N = point.direction;
-          if (vector3_dot(L, N) < 0)
-            N = vector3_scale(N, -1);
-          struct ray light_ray;
-          light_ray.origin = point.origin;
-          light_ray.direction = vector3_sub(light.v, point.origin);
-          float dist = vector3_length(vector3_sub(light.v, point.origin));
-          if (!has_direct_hit(scene, light_ray))
-          {
-            struct color tmp = color_mul2(init_color(light.r, light.g, light.b),
-                             init_color(object.kd.x, object.kd.y, object.kd.z));
-            tmp = color_mul(tmp, vector3_dot(L, N) * 1 / dist);
-            light_ray.direction = vector3_sub(light.v, point.origin);
-            light_ray.origin = vector3_add(light_ray.origin,
-                                           vector3_scale(light_ray.direction,
-                                                         -10));
-            apply_specular(&tmp, light_ray, point, object);
-            color = color_add(color, tmp);
-          }
+//          vector3 L = vector3_scale(light.v, -1);
+//          vector3 N = point.direction;
+//          if (vector3_dot(L, N) < 0)
+//            N = vector3_scale(N, -1);
+//          struct ray light_ray;
+//          light_ray.origin = point.origin;
+//          light_ray.direction = vector3_sub(light.v, point.origin);
+//          float dist = vector3_length(vector3_sub(light.v, point.origin));
+//          if (!has_direct_hit(scene, light_ray))
+//          {
+//            struct color tmp = color_mul2(init_color(light.r, light.g, light.b),
+//                             init_color(object.kd.x, object.kd.y, object.kd.z));
+//            tmp = color_mul(tmp, vector3_dot(L, N) * 1 / dist);
+//            light_ray.direction = vector3_sub(light.v, point.origin);
+//            light_ray.origin = vector3_add(light_ray.origin,
+//                                           vector3_scale(light_ray.direction,
+//                                                         -10));
+//            apply_specular(&tmp, light_ray, point, object);
+//            color = color_add(color, tmp);
+//          }
         break;
         }
       default:

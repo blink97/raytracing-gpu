@@ -1,3 +1,5 @@
+#include <cuda_runtime.h>
+
 #ifndef COLORS_H
 # define COLORS_H
 
@@ -16,9 +18,12 @@ struct color {
   uint8_t a;
 };
 
-CUDA_HOSTDEV struct color init_color(float r, float g, float b);
-CUDA_HOSTDEV struct color color_add(struct color a, struct color b);
-CUDA_HOSTDEV struct color color_mul(struct color a, float coef);
-CUDA_HOSTDEV struct color color_mul2(struct color a, struct color b);
+//__host__ __device__ struct color operator*(struct color &a, struct color &b);
+//__host__ __device__ struct color operator*(struct color &a, float b);
+
+__device__ struct color init_color(float r, float g, float b);
+__device__ struct color color_add(struct color* a, struct color* b);
+__device__ struct color color_mul(struct color* a, float coef);
+__device__ struct color color_mul2(struct color* a, struct color* b);
 
 #endif /* !COLORS_H */

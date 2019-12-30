@@ -1,11 +1,14 @@
+#include <math.h>
+#include <cuda_runtime.h>
 #include "vector3.h"
 
-__host__ __device__ vector3 vector3_sub(vector3 a, vector3 b)
+
+__device__ vector3 vector3_sub(vector3 a, vector3 b)
 {
   return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
-__host__ __device__ vector3 vector3_add(vector3 a, vector3 b)
+__device__ vector3 vector3_add(vector3 a, vector3 b)
 {
   return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
   vector3 ret;
@@ -15,7 +18,8 @@ __host__ __device__ vector3 vector3_add(vector3 a, vector3 b)
   return ret;
 }
 
-__host__ __device__ vector3 vector3_cross(vector3 a, vector3 b)
+
+__device__ vector3 vector3_cross(vector3 a, vector3 b)
 {
   return make_float3(
     a.y * b.z - a.z * b.y,
@@ -24,7 +28,7 @@ __host__ __device__ vector3 vector3_cross(vector3 a, vector3 b)
   );
 }
 
-__host__ __device__ vector3 vector3_scale(vector3 a, float r)
+__device__ vector3 vector3_scale(vector3 a, float r)
 {
   return make_float3(
     r * a.x,
@@ -33,7 +37,7 @@ __host__ __device__ vector3 vector3_scale(vector3 a, float r)
   );
 }
 
-__host__ __device__ vector3 vector3_normalize(vector3 a)
+__device__ vector3 vector3_normalize(vector3 a)
 {
   float root = vector3_length(a);
   return make_float3(

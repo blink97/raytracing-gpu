@@ -27,7 +27,7 @@ void _abortError(const char* msg, const char* fname, int line)
 #define abortError(msg) _abortError(msg, __FUNCTION__, __LINE__)
 
 
-__device__ static struct color trace(struct scene scene, struct ray ray, float coef)
+__device__ static struct color trace(struct scene* scene, struct ray ray, float coef)
 {
   if (coef < 0.01)
     return init_color(0, 0, 0);
@@ -35,10 +35,11 @@ __device__ static struct color trace(struct scene scene, struct ray ray, float c
   struct ray new_ray = collide(scene, ray, &obj);
   if (!vector3_is_zero(new_ray.direction))
   {
-    struct color object = apply_light(scene, obj, new_ray);
+    struct color object = apply_light(scene, &obj, new_ray);
     struct ray reflection_ray = ray_bounce(ray, new_ray);
     struct color reflection = trace(scene, reflection_ray, obj.nr * coef);
-    struct color ret = color_add(reflection, color_mul(object, coef));
+    struct color temp = color_mul(&object, coef);
+    struct color ret = color_add(&reflection, &temp);
     return ret;
   }
   return init_color(0, 0, 0);
@@ -64,20 +65,61 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
   struct ray ray;
   ray.origin = point;
   ray.direction = direction;
-  //struct color color = trace(*scene, ray, 1);
-  struct color color = init_color(0, 1, 0);
+  struct color color = trace(scene, ray, 1);
+//  struct color color = init_color(0, 1, 0);
 
   lineptr[px] = *(uint32_t *)&color;
 }
 
+float host_v_len(vector3 a) {
+	return sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+}
+
+vector3 host_v_norm(vector3 a) {
+	float root = host_v_len(a);
+	  return make_float3(
+	    a.x / root,
+	    a.y / root,
+	    a.z / root
+	  );
+}
+
+vector3 host_v_cross(vector3 a, vector3 b) {
+	 return make_float3(
+	    a.y * b.z - a.z * b.y,
+	    a.z * b.x - a.x * b.z,
+	    a.x * b.y - a.y * b.x
+	  );
+}
+
+vector3 host_v_add(vector3 a, vector3 b) {
+	 return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+	  vector3 ret;
+	  ret.x = a.x + b.x;
+	  ret.y = a.y + b.y;
+	  ret.z = a.z + b.z;
+	  return ret;
+}
+
+vector3 host_v_scale(vector3 a, float r)
+{
+  return make_float3(
+    r * a.x,
+    r * a.y,
+    r * a.z
+  );
+}
+
+
+
 
 void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t stride)
 {
-  vector3 u = vector3_normalize(scene.camera.u);
-  vector3 v = vector3_normalize(scene.camera.v);
-  vector3 w = vector3_cross(u, v);
+  vector3 u = host_v_norm(scene.camera.u);
+  vector3 v = host_v_norm(scene.camera.v);
+  vector3 w = host_v_cross(u, v);
   float L = scene.camera.width / (2 * tan(scene.camera.fov * M_PI / 360));
-  vector3 C = vector3_add(scene.camera.position, vector3_scale(w, L));
+  vector3 C = host_v_add(scene.camera.position, host_v_scale(w, L));
 
   int width = scene.camera.width;
   int height = scene.camera.height;
