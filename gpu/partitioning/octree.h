@@ -39,11 +39,6 @@ void create_octree(
 );
 
 /*
- * All functions exported under this are only present
- * so that they can be benchmarked together.
- */
-
-/*
  * Contains the position of an object into a octree.
  * This value contains two information:
  *  - the level depth
@@ -84,6 +79,59 @@ __global__ void position_object(
   const struct AABB *const scale,
   octree_generation_position *positions,
   size_t nb_objects
+);
+
+
+/*
+ * Sort the positions so that the tree creation can be done
+ * simply, as objects on the same octree are placed next to
+ * each other.
+ */
+__global__ void single_thread_bubble_argsort(
+  octree_generation_position *positions,
+  size_t *indexes,
+  size_t nb_objects
+);
+
+/*
+ * Get the number of nodes in the octree that needs to be created
+ * for each position, excluding the ones already created
+ * by other nodes. Positions must be sorted, as it allows
+ * to easily get this number for each position, only having to
+ * look at the previous element in the array to get the difference
+ * in the number of octree nodes.
+ */
+__global__ void nodes_difference_array(
+  const octree_generation_position *const sorted_positions,
+  size_t *node_differences,
+  size_t nb_objects
+);
+
+
+/*
+ * Compute the prefix sum array for the nodes difference.
+ * This allows to simply knows how many octree nodes must be
+ * created in advance, and allowing fast octree construction,
+ * as the octree can be fully constructed in parallel.
+ * The number of octree nodes that need to be created
+ * is the last value in the array.
+ */
+__global__ void single_thread_nodes_difference_to_prefix_array(
+  size_t *node_differences,
+  size_t nb_objects
+);
+
+/*
+ * Create the full octree.
+ * The number of octree node created is the last value
+ * of the prefix array.
+ */
+__global__ void create_octree(
+  const octree_generation_position *const sorted_positions,
+  const size_t *const sorted_indexes,
+  const size_t *const node_differences,
+  size_t nb_objects,
+  struct octree **resulting_octree
 );
 
 #endif /* !OCTREE_H */

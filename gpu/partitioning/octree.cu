@@ -153,10 +153,113 @@ __global__ void position_object(
   positions[index] = position;
 }
 
-void create_octree(
-  struct scene *scene,
-  struct AABB *aabb,
-  struct octree **octree)
+
+__global__ void single_thread_bubble_argsort(
+  octree_generation_position *positions,
+  size_t *indexes,
+  size_t nb_objects)
+{
+  if (blockIdx.x * blockDim.x + threadIdx.x > 1)
+    return; // Nothing to do here, sort is single thread.
+
+  // First, create the range.
+  for (size_t i = 0; i < nb_objects; ++i)
+    indexes[i] = i;
+
+  // Then bubble sort the way out of the array.
+  for (size_t i = nb_objects - 1; i > 0; --i)
+  {
+    for (size_t j = 0; j < i; ++j)
+    {
+      if (positions[j + 1] < positions[j])
+      {
+        size_t temp_index = indexes[j];
+        octree_generation_position temp_position = positions[j];
+
+        indexes[j] = indexes[j + 1];
+        positions[j] = positions[j + 1];
+
+        indexes[j + 1] = temp_index;
+        positions[j + 1] = temp_position;
+      }
+    }
+  }
+}
+
+__global__ void nodes_difference_array(
+  const octree_generation_position *const sorted_positions,
+  size_t *node_differences,
+  size_t nb_objects)
+{
+  size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= nb_objects) return; // Nothing to do here
+
+  octree_generation_position current = sorted_positions[index];
+  uint8_t current_level = ((current & 0xFF000000) >> 24);
+
+  size_t diff;
+  if (index == 0)
+  {// The first node creates everything.
+    diff = current_level + 1/* Include the root nodes */;
+  }
+  else
+  {// The next nodes only created was is needed compared to the previous one.
+    octree_generation_position previous = sorted_positions[index - 1];
+    uint8_t previous_level = ((previous & 0xFF000000) >> 24);
+
+    uint8_t min_level;
+    uint8_t max_level;
+    if (previous_level < current_level)
+    {
+      min_level = previous_level;
+      max_level = current_level;
+    }
+    else
+    {
+      min_level = current_level;
+      max_level = previous_level;
+    }
+
+    diff = max_level;// Don't include the root node, it already was included.
+
+    uint8_t actual_test_level = 0;
+    for (; actual_test_level < min_level; ++actual_test_level)
+    {
+      if (((previous >> (3 * (7 - actual_test_level))) & 0x7) !=
+          ((current >> (3 * (7 - actual_test_level))) & 0x7))
+      {// Current level and previous level is different
+        break;
+      }
+    }
+
+    // Remove the common level nodes in it.
+    diff -= actual_test_level;
+  }
+
+  node_differences[index] = diff;
+}
+
+__global__ void single_thread_nodes_difference_to_prefix_array(
+  size_t *nodes_differences,
+  size_t nb_objects)
+{
+  if (blockIdx.x * blockDim.x + threadIdx.x > 1)
+    return; // Nothing to do here, prefix array is single thread.
+
+  size_t previous = 0;
+  for (size_t i = 0; i < nb_objects; ++i)
+  {
+    previous = nodes_differences[i] + previous;
+    nodes_differences[i] = previous;
+  }
+}
+
+__global__ void create_octree(
+  const octree_generation_position *const sorted_positions,
+  const size_t *const sorted_indexes,
+  const size_t *const node_differences,
+  size_t nb_objects,
+  struct octree **resulting_octree)
 {
   // Find the maximun and the minimum of the whole scene.
   // Scale the aabb to fit in the [0-1] space

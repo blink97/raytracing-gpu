@@ -76,17 +76,11 @@ void display_cuda_scene(const struct scene *cuda_scene)
 void display_aabbs(const struct AABB *aabbs, size_t nb_objects)
 {
   std::cout << "displaying aabb" << std::endl;
-  display_GPU_memory();
 
   struct AABB *cpu_aabbs;
   cudaMallocHost(&cpu_aabbs, sizeof(struct AABB) * nb_objects);
-
-  display_GPU_memory();
-
-  // Error wtf ?
   cudaMemcpy(cpu_aabbs, aabbs, sizeof(struct AABB) * nb_objects, cudaMemcpyDefault);
 
-  display_GPU_memory();
   std::cout << std::endl << nb_objects << " objects AABB (from: " << aabbs << " to: " << cpu_aabbs << ")" << std::endl;
 
   for (int i = 0; i < nb_objects; ++i)
@@ -100,28 +94,69 @@ void display_aabbs(const struct AABB *aabbs, size_t nb_objects)
   cudaFreeHost(cpu_aabbs);
 }
 
-void display_positions(const octree_generation_position *positions, size_t nb_objects)
+void display_positions(
+  const octree_generation_position *positions,
+  size_t *positions_sorted_index,
+  size_t nb_objects)
 {
-  std::cout << "displaying positions" << std::endl;
-
+  std::cout << "displaying positions" << (positions_sorted_index ? " sorted": " unsorted") << std::endl;
 
   octree_generation_position *cpu_positions;
   cudaMallocHost(&cpu_positions, sizeof(octree_generation_position) * nb_objects);
   cudaMemcpy(cpu_positions, positions, sizeof(octree_generation_position) * nb_objects, cudaMemcpyDefault);
 
+  size_t *cpu_positions_sorted_index = nullptr;
+  if (positions_sorted_index)
+  {
+    cudaMallocHost(&cpu_positions_sorted_index, sizeof(size_t) * nb_objects);
+    cudaMemcpy(cpu_positions_sorted_index, positions_sorted_index, sizeof(size_t) * nb_objects, cudaMemcpyDefault);
+  }
+
   for (int i = 0; i < nb_objects; ++i)
   {
     std::cout << "level: " << ((cpu_positions[i] & 0xFF000000) >> 24)
-              << " " << std::bitset<24>(cpu_positions[i]) << std::endl;
+              << " " << std::bitset<24>(cpu_positions[i]);
+
+    if (positions_sorted_index)
+    {
+      std::cout << " position: " << cpu_positions_sorted_index[i];
+    }
+
+    std::cout << std::endl;
   }
 
   cudaFreeHost(cpu_positions);
+  if (positions_sorted_index) cudaFreeHost(cpu_positions_sorted_index);
+}
+
+void display_node_differences(
+  const octree_generation_position *positions,
+  size_t *node_differences,
+  size_t nb_objects)
+{
+  std::cout << "displaying nodes differences" << std::endl;
+
+  octree_generation_position *cpu_positions;
+  cudaMallocHost(&cpu_positions, sizeof(octree_generation_position) * nb_objects);
+  cudaMemcpy(cpu_positions, positions, sizeof(octree_generation_position) * nb_objects, cudaMemcpyDefault);
+
+  size_t *cpu_node_differences;
+  cudaMallocHost(&cpu_node_differences, sizeof(size_t) * nb_objects);
+  cudaMemcpy(cpu_node_differences, node_differences, sizeof(size_t) * nb_objects, cudaMemcpyDefault);
+
+  for (int i = 0; i < nb_objects; ++i)
+  {
+    std::cout << "level: " << ((cpu_positions[i] & 0xFF000000) >> 24)
+              << " " << std::bitset<24>(cpu_positions[i])
+              << " diff: " << cpu_node_differences[i] << std::endl;
+  }
+
+  cudaFreeHost(cpu_positions);
+  cudaFreeHost(cpu_node_differences);
 }
 
 void test_partitioning(const struct scene *cuda_scene)
 {
-  display_GPU_memory();
-
   display_cuda_scene(cuda_scene);
 
   struct scene CPU_scene;
@@ -131,43 +166,46 @@ void test_partitioning(const struct scene *cuda_scene)
   dim3 numBlocks(ceil(CPU_scene.object_count * 1.0 / threadsPerBlock.x));
 
   std::cout << "kernel param: " << numBlocks.x << " " << threadsPerBlock.x << std::endl;
-
   std::cout << "nb_objects: " << CPU_scene.object_count << std::endl;
 
   // Compute the bounding box
   struct AABB *aabbs;
-  if (cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count) != cudaSuccess)
-  {
-    std::cout << "Error allocating all aabbs: " << CPU_scene.object_count << std::endl;
-  }
-  display_GPU_memory();
-
+  cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
   object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
   display_aabbs(aabbs, CPU_scene.object_count);
+
   // Compute the global scale
-  display_GPU_memory();
-
   struct AABB *resulting_scale;
-  if (cudaMalloc(&resulting_scale, sizeof(struct AABB)) != cudaSuccess)
-  {
-    std::cout << "Error allocating resulting scale" << std::endl;
-  }
-  display_GPU_memory();
-
+  cudaMalloc(&resulting_scale, sizeof(struct AABB));
   find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
   display_aabbs(resulting_scale, 1);
 
   // Compute the position of the objects
   octree_generation_position *positions;
   cudaMalloc(&positions, sizeof(octree_generation_position) * CPU_scene.object_count);
-  display_GPU_memory();
-
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, CPU_scene.object_count);
-  display_positions(positions, CPU_scene.object_count);
+  display_positions(positions, nullptr, CPU_scene.object_count);
 
+  // Sort the position of the objects
+  size_t *positions_sorted_index;
+  cudaMalloc(&positions_sorted_index, sizeof(size_t) * CPU_scene.object_count);
+  single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, CPU_scene.object_count);
+  display_positions(positions, positions_sorted_index, CPU_scene.object_count);
+
+  // Get the number of nodes needed per each objects
+  size_t *node_differences;
+  cudaMalloc(&node_differences, sizeof(size_t) * CPU_scene.object_count);
+  nodes_difference_array<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count);
+  display_node_differences(positions, node_differences, CPU_scene.object_count);
+
+  // Perform a prefix sum on it
+  single_thread_nodes_difference_to_prefix_array<<<1, 1>>>(node_differences, CPU_scene.object_count);
+  display_node_differences(positions, node_differences, CPU_scene.object_count);
+
+  cudaFree(aabbs);
   cudaFree(resulting_scale);
   cudaFree(positions);
-  cudaFree(aabbs);
+  cudaFree(node_differences);
 }
 
 int main(int argc, char *argv[])
