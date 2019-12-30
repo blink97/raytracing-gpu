@@ -39,7 +39,7 @@ __device__ struct color color_mul(struct color* a, float coef)
   return init_color(float(a->r) / 255 * coef, float(a->g) / 255 * coef, float(a->b) / 255 * coef);
 }
 
-__device__ struct color color_mul2(struct color a, struct color b)
+__device__ struct color color_mults(struct color a, struct color b)
 {
   return init_color((float(a.r) / 255) * (float(b.r) / 255),
                     (float(a.g) / 255) * (float(b.g) / 255),
