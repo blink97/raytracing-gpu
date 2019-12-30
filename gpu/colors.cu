@@ -2,48 +2,46 @@
 
 __host__ __device__ struct color init_color(float r, float g, float b)
 {
-  struct color ret;
-  ret.r = r * 255;
-  if (ret.r > 255)
-    ret.r = 255;
-  if (ret.r < 0)
-    ret.r = 0;
-  ret.g = g * 255;
-  if (ret.g > 255)
-    ret.g = 255;
-  if (ret.g < 0)
-    ret.g = 0;
-  ret.b = b * 255;
-  if (ret.b > 255)
-    ret.b = 255;
-  if (ret.b < 0)
-    ret.b = 0;
-  return ret;
+  r = r * 255;
+  if (r > 255)
+    r = 255;
+  if (r < 0)
+    r = 0;
+  g = g * 255;
+  if (g > 255)
+    g = 255;
+  if (g < 0)
+    g = 0;
+  b = b * 255;
+  if (b > 255)
+    b = 255;
+  if (b < 0)
+    b = 0;
+  return color{r, g, b, 255};
 }
 
 __host__ __device__ struct color color_add(struct color a, struct color b)
 {
-  a.r += b.r;
-  if (a.r > 255)
-    a.r = 255;
-  a.g += b.g;
-  if (a.g > 255)
-    a.g = 255;
-  a.b += b.b;
-  if (a.b > 255)
-    a.b = 255;
-  return a;
+  auto r = a.r + b.r;
+  if (r > 255)
+    r = 255;
+  auto g = a.g + b.g;
+  if (g > 255)
+    g = 255;
+  auto blu = a.b + b.b;
+  if (blu > 255)
+    blu = 255;
+  return color{r, g, blu, 255};
 }
 
 __host__ __device__ struct color color_mul(struct color a, float coef)
 {
-  return init_color(a.r / 255 * coef, a.g / 255 * coef, a.b / 255 * coef);
+  return init_color(float(a.r) / 255 * coef, float(a.g) / 255 * coef, float(a.b) / 255 * coef);
 }
 
 __host__ __device__ struct color color_mul2(struct color a, struct color b)
 {
-  return init_color((a.r / 255) * (b.r / 255),
-                    (a.g / 255) * (b.g / 255),
-                    (a.b / 255) * (b.b / 255));
-  return a;
+  return init_color((float(a.r) / 255) * (float(b.r) / 255),
+                    (float(a.g) / 255) * (float(b.g) / 255),
+                    (float(a.b) / 255) * (float(b.b) / 255));
 }
