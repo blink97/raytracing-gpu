@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <spdlog/spdlog.h>
+#include <cassert>
 
 #include "raytracer.h"
 #include "vector3.h"
@@ -13,6 +14,17 @@
 #include "hit.h"
 #include "light.h"
 #include "thread_arg.h"
+
+[[gnu::noinline]]
+void _abortError(const char* msg, const char* fname, int line)
+{
+  cudaError_t err = cudaGetLastError();
+  spdlog::error("{} ({}, line: {})", msg, fname, line);
+  spdlog::error("Error {}: {}", cudaGetErrorName(err), cudaGetErrorString(err));
+  std::exit(1);
+}
+
+#define abortError(msg) _abortError(msg, __FUNCTION__, __LINE__)
 
 
 __device__ static struct color trace(struct scene scene, struct ray ray, float coef)
@@ -37,10 +49,10 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
                          struct scene* scene, vector3* u, vector3* v, vector3* C)
 {
 
+  printf("test");
+
   int px = blockDim.x * blockIdx.x + threadIdx.x;
   int py = blockDim.y * blockIdx.y + threadIdx.y;
-
-  printf("return\n");
 
   if (px >= width || py >= height)
     return;
@@ -79,9 +91,9 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
   size_t pitch;
 
   // rc = cudaMalloc(&LUT, (n_iterations + 1) * sizeof(uchar4));
-  cudaMallocPitch(&devBuffer, &pitch, width * sizeof(uchar4), height);
-  //if (rc)
-    //abortError("Fail buffer allocation");
+  rc = cudaMallocPitch(&devBuffer, &pitch, width * sizeof(uchar4), height);
+  if (rc)
+    abortError("Fail buffer allocation");
 
   // Run the kernel with blocks of size 64 x 64
   int bsize = 32;
@@ -111,19 +123,18 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
   raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
   printf("done..\n");
 
-  cudaDeviceSynchronize();
+  //cudaDeviceSynchronize();
 
-    //if (cudaPeekAtLastError())
-      //abortError("Computation Error");
+  if (cudaPeekAtLastError())
+    abortError("Computation Error");
 
   // Copy back to main memory
-  cudaMemcpy2D(buffer, stride, devBuffer, pitch, width * sizeof(struct color), height, cudaMemcpyDeviceToHost);
-  printf("mem copy");
-  //if (rc)
-    //abortError("Unable to copy buffer back to memory");
+  rc = cudaMemcpy2D(buffer, stride, devBuffer, pitch, width * sizeof(struct color), height, cudaMemcpyDeviceToHost);
+  if (rc)
+    abortError("Unable to copy buffer back to memory");
 
   // Free
-  cudaFree(devBuffer);
-  //if (rc)
-    //abortError("Unable to free memory");
+  rc = cudaFree(devBuffer);
+  if (rc)
+    abortError("Unable to free memory");
 }

@@ -55,7 +55,7 @@ void write_png(const std::byte* buffer,
 int main(int argc, char *argv[])
 {
   if (argc != 3)
-    errx(1, "usage: %s file.svati output.ppm", argv[0]);
+    errx(1, "usage: %s file.svati output.png", argv[0]);
 
 #  if defined(LAYOUT_FRAGMENTED)
   std::cout << "Using fragmented layout" << std::endl;
