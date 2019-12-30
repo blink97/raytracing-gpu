@@ -88,7 +88,7 @@ void display_aabbs(const struct AABB *aabbs, size_t nb_objects)
   {//Display the aabb
     struct AABB current = cpu_aabbs[i];
 
-    std::cout << current.min.x << "," << current.min.y << "," << current.min.z << " - "
+    std::cout << current.min.x << "," << current.min.y << "," << current.min.z << " || "
               << current.max.x << "," << current.max.y << "," << current.max.z << std::endl;
   }
 
@@ -268,7 +268,7 @@ void test_partitioning(const struct scene *cuda_scene)
   cudaMalloc(&octree, sizeof(struct octree) * nb_nodes);
   create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, octree);
   display_octree_iter(octree, positions, nb_nodes);
-  //display_octree_rec(octree);
+  display_octree_rec(octree);
 
 
   cudaFree(aabbs);

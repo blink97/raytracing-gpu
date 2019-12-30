@@ -278,6 +278,17 @@ __global__ void single_thread_nodes_difference_to_prefix_array(
 }
 
 
+__device__ vector3 get_center(uint8_t x, uint8_t y, uint8_t z, uint8_t level, const struct AABB *const scale)
+{
+  float center_offset = pow(0.5, level) * 0.5;
+  vector3 center = {
+    .x = ((float)(x / 256.0) + center_offset) * (scale->max.x - scale->min.x) - scale->min.x,
+    .y = ((float)(y / 256.0) + center_offset) * (scale->max.y - scale->min.y) - scale->min.y,
+    .z = ((float)(z / 256.0) + center_offset) * (scale->max.z - scale->min.z) - scale->min.z
+  };
+  return center;
+}
+
 __global__ void create_octree(
   const octree_generation_position *const sorted_positions,
   const size_t *const nodes_difference,
@@ -305,22 +316,31 @@ __global__ void create_octree(
   if (previous_diff != current_diff)
   {// This object create a new hierachy
 
+    // Get the center of the octree.
+    // To do that, perform the inverse trick of get_point_position
+    // to get a value in the [0-1[ range, and scale it back to get the center.
+    octree_generation_position current_position = sorted_positions[index];
+    uint8_t x, y, z, level = get_level(current_position);
+    for (uint8_t i = 0; i < 8; ++i)
+    {
+      uint8_t local_position = get_level_position(current_position, i + 1);
+      x = x << 1 | ((local_position & 1) != 0);
+      y = y << 1 | ((local_position & 2) != 0);
+      z = z << 1 | ((local_position & 4) != 0);
+    }
+
     // The new node have been created, but unused
     // so their start and end must be set.
     for (size_t i = previous_diff + 1/* Skip the already created parent */; i < current_diff; ++i)
     {
       resulting_octree[i - 1].start_index = index;
       resulting_octree[i - 1].end_index = index;
+      resulting_octree[i - 1].center = get_center(x, y, z, level - (current_diff - i), scale);
     }
 
     // Set the starting index.
     resulting_octree[current_diff - 1].start_index = index;
-
-    // Get the center of the octree.
-    // To do that, perform the inverse trick of get_point_position
-    // to get a value in the [0-1[ range, and scale it back to get the center.
-
-    //TODO
+    resulting_octree[current_diff - 1].center = get_center(x, y, z, level, scale);
   }
 
   if (index + 1 >= nb_objects || nodes_difference[index + 1] != current_diff)
@@ -336,7 +356,7 @@ __global__ void create_octree(
 
   if (previous_diff != current_diff)
   {// Create a new hierachy, find parents and set the children
-    octree_generation_position current_position = sorted_positions[resulting_octree[current_diff - 1].start_index];
+    octree_generation_position current_position = sorted_positions[index];
     size_t bottom_level = get_level(current_position);
 
     // First, fixes all created nodes, except the last (there is nothing to fix here)
