@@ -18,7 +18,10 @@ struct octree
 
   // The objects index in the scene at which this level start.
   size_t start_index;
-  // The objects index in the scene at which this level end.
+  // The objects index in the scene at which this level end, excluded.
+  // Excluding the value allows for simple iteration: while (i < end_index),
+  // and at the same times, handling of nodes only
+  // containing children and no objects.
   size_t end_index;
 
   // All the children of the octree.
@@ -49,6 +52,15 @@ void create_octree(
  */
 typedef uint32_t octree_generation_position;
 
+/*
+ * Get the level associated with the given position
+ */
+__host__ __device__ uint8_t get_level(octree_generation_position position);
+
+/*
+ * Get the position in the octree node at the given level.
+ */
+__host__ __device__ uint8_t get_level_position(octree_generation_position position, uint8_t level);
 
 /*
  * Find the scale of the scene, so that the rest
@@ -103,7 +115,7 @@ __global__ void single_thread_bubble_argsort(
  */
 __global__ void nodes_difference_array(
   const octree_generation_position *const sorted_positions,
-  size_t *node_differences,
+  size_t *nodes_difference,
   size_t nb_objects
 );
 
@@ -117,7 +129,7 @@ __global__ void nodes_difference_array(
  * is the last value in the array.
  */
 __global__ void single_thread_nodes_difference_to_prefix_array(
-  size_t *node_differences,
+  size_t *nodes_difference,
   size_t nb_objects
 );
 
@@ -128,10 +140,10 @@ __global__ void single_thread_nodes_difference_to_prefix_array(
  */
 __global__ void create_octree(
   const octree_generation_position *const sorted_positions,
-  const size_t *const sorted_indexes,
-  const size_t *const node_differences,
+  const size_t *const nodes_difference,
   size_t nb_objects,
-  struct octree **resulting_octree
+  const struct AABB *const scale,
+  struct octree *resulting_octree
 );
 
 #endif /* !OCTREE_H */

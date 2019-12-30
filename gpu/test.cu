@@ -5,6 +5,7 @@
 #include "partitioning/octree.h"
 
 #include <iostream>
+#include <string>
 #include <bitset>
 
 #define TESTS_PATH "../../tests/"
@@ -114,8 +115,8 @@ void display_positions(
 
   for (int i = 0; i < nb_objects; ++i)
   {
-    std::cout << "level: " << ((cpu_positions[i] & 0xFF000000) >> 24)
-              << " " << std::bitset<24>(cpu_positions[i]);
+    std::cout << "level: " << (int)get_level(cpu_positions[i])
+              << " " << std::bitset<32>(cpu_positions[i]);
 
     if (positions_sorted_index)
     {
@@ -146,8 +147,8 @@ void display_node_differences(
 
   for (int i = 0; i < nb_objects; ++i)
   {
-    std::cout << "level: " << ((cpu_positions[i] & 0xFF000000) >> 24)
-              << " " << std::bitset<24>(cpu_positions[i])
+    std::cout << "level: " << (int)get_level(cpu_positions[i])
+              << " " << std::bitset<32>(cpu_positions[i])
               << " diff: " << cpu_node_differences[i] << std::endl;
   }
 
@@ -155,9 +156,64 @@ void display_node_differences(
   cudaFreeHost(cpu_node_differences);
 }
 
+void display_octree_iter(
+  const struct octree *const octree,
+  const octree_generation_position *const positions,
+  size_t nb_nodes)
+{
+  struct octree *cpu_octree;
+  cudaMallocHost(&cpu_octree, sizeof(struct octree) * nb_nodes);
+  cudaMemcpy(cpu_octree, octree, sizeof(struct octree) * nb_nodes, cudaMemcpyDefault);
+
+  for (size_t i = 0; i < nb_nodes; ++i)
+  {
+    octree_generation_position start_pos;
+    cudaMemcpy(&start_pos, positions + cpu_octree[i].start_index, sizeof(octree_generation_position), cudaMemcpyDefault);
+
+    std::cout << "index: " << i << std::endl
+              << "center: " << cpu_octree[i].center.x << " " << cpu_octree[i].center.y << " " << cpu_octree[i].center.z << std::endl
+              << "range (" << cpu_octree[i].start_index << "," << cpu_octree[i].end_index << ")" << std::endl
+              << "level: " << (int)get_level(start_pos) << std::endl
+              << "position: " << std::bitset<32>(start_pos) << std::endl;
+
+    for (int j = 0; j < 8; ++j)
+    {
+      std::cout << "children: " << std::bitset<3>(j) << " (";
+      if (cpu_octree[i].children[j])
+        std::cout << (cpu_octree[i].children[j] - octree);
+      else
+        std::cout << "nullptr";
+
+      std::cout << ")" << std::endl;
+    }
+
+    std::cout << std::endl;
+  }
+
+  cudaFreeHost(cpu_octree);
+}
+
+void display_octree_rec(const struct octree *const octree, size_t current_level = 0)
+{
+  struct octree cpu_octree;
+  cudaMemcpy(&cpu_octree, octree, sizeof(struct octree), cudaMemcpyDefault);
+
+  auto indent = std::string(current_level, '\t');
+
+  std::cout << indent << "center: " << cpu_octree.center.x << " " << cpu_octree.center.y << " " << cpu_octree.center.z << std::endl
+            << indent << "range (" << cpu_octree.start_index << "," << cpu_octree.end_index << ")" << std::endl;
+
+  for (int i = 0; i < 8; ++i)
+  {
+    std::cout << indent << "children: " << std::bitset<3>(i) << std::endl;
+    if (cpu_octree.children[i])
+      display_octree_rec(cpu_octree.children[i], current_level + 1);
+  }
+}
+
 void test_partitioning(const struct scene *cuda_scene)
 {
-  display_cuda_scene(cuda_scene);
+  //display_cuda_scene(cuda_scene);
 
   struct scene CPU_scene;
   cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
@@ -184,13 +240,13 @@ void test_partitioning(const struct scene *cuda_scene)
   octree_generation_position *positions;
   cudaMalloc(&positions, sizeof(octree_generation_position) * CPU_scene.object_count);
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, CPU_scene.object_count);
-  display_positions(positions, nullptr, CPU_scene.object_count);
+  //display_positions(positions, nullptr, CPU_scene.object_count);
 
   // Sort the position of the objects
   size_t *positions_sorted_index;
   cudaMalloc(&positions_sorted_index, sizeof(size_t) * CPU_scene.object_count);
   single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, CPU_scene.object_count);
-  display_positions(positions, positions_sorted_index, CPU_scene.object_count);
+  //display_positions(positions, positions_sorted_index, CPU_scene.object_count);
 
   // Get the number of nodes needed per each objects
   size_t *node_differences;
@@ -202,10 +258,24 @@ void test_partitioning(const struct scene *cuda_scene)
   single_thread_nodes_difference_to_prefix_array<<<1, 1>>>(node_differences, CPU_scene.object_count);
   display_node_differences(positions, node_differences, CPU_scene.object_count);
 
+  // Create the resulting octree
+  size_t nb_nodes;
+  cudaMemcpy(&nb_nodes, node_differences + (CPU_scene.object_count - 1), sizeof(size_t), cudaMemcpyDefault);
+
+  std::cout << "nb nodes in the resulting octree: "<< nb_nodes << std::endl;
+
+  struct octree *octree;
+  cudaMalloc(&octree, sizeof(struct octree) * nb_nodes);
+  create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, octree);
+  display_octree_iter(octree, positions, nb_nodes);
+  //display_octree_rec(octree);
+
+
   cudaFree(aabbs);
   cudaFree(resulting_scale);
   cudaFree(positions);
   cudaFree(node_differences);
+  cudaFree(octree);
 }
 
 int main(int argc, char *argv[])
@@ -222,8 +292,8 @@ int main(int argc, char *argv[])
   display_GPU_memory();
 
   //struct scene scene = parser(CUBE);
-  //struct scene scene = parser(DARK_NIGHT);
-  struct scene scene = parser(ISLAND_SMOOTH);
+  struct scene scene = parser(DARK_NIGHT);
+  //struct scene scene = parser(ISLAND_SMOOTH);
   //struct scene scene = parser(SPHERES);
 
   display_GPU_memory();
