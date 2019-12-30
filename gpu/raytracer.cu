@@ -64,7 +64,8 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
   struct ray ray;
   ray.origin = point;
   ray.direction = direction;
-  struct color color = trace(*scene, ray, 1);
+  //struct color color = trace(*scene, ray, 1);
+  struct color color = init_color(0, 1, 0);
 
   lineptr[px] = *(uint32_t *)&color;
 }
@@ -89,7 +90,7 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
   size_t pitch;
 
   // rc = cudaMalloc(&LUT, (n_iterations + 1) * sizeof(uchar4));
-  rc = cudaMallocPitch(&devBuffer, &pitch, width * sizeof(uchar4), height);
+  rc = cudaMallocPitch(&devBuffer, &pitch, width * sizeof(struct color), height);
   if (rc)
     abortError("Fail buffer allocation");
 
