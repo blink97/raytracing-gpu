@@ -6,6 +6,10 @@ project (GPGPU CUDA CXX)
 #add_compile_definitions(LAYOUT_AOS)
 add_compile_definitions(LAYOUT_SOA)
 
+
+set(CMAKE_CUDA_COMPILER "/usr/local/cuda-10.2/bin/nvcc")
+
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -43,6 +47,8 @@ include_directories("${CUDA_INCLUDE_DIRS}") #To allows cuda type definition in .
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wextra -Wall -I./headers -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
+
 
 # The thing used for rendering
 add_library(renderer)
@@ -52,6 +58,7 @@ target_link_libraries(renderer PRIVATE spdlog::spdlog)
 
 
 target_sources(renderer PRIVATE
+  vector3.cu
   colors.cu
   hit.cu
   light.cu
@@ -65,7 +72,6 @@ target_sources(renderer PRIVATE
   raytracer.cu
   thread_arg.cpp
   vector3-extern.cu
-  vector3.cu
 )
 
 set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
