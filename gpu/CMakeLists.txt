@@ -7,8 +7,6 @@ project (GPGPU CUDA CXX)
 add_compile_definitions(LAYOUT_SOA)
 
 
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda-10.2/bin/nvcc")
-
 
 include(FetchContent)
 
