@@ -407,14 +407,4 @@ __global__ void create_octree(
       ] = (resulting_octree + previous_diff);
     }
   }
-
-  // Find the maximun and the minimum of the whole scene.
-  // Scale the aabb to fit in the [0-1] space
-
-  // For a fixed depth, let all objects place themself in the octree.
-  // To do that, use 3bits per level to say where they are stored.
-
-  // Sort the objects to group together objects at the same level.
-
-  // Create the octree from that.
 }

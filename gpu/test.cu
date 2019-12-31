@@ -273,6 +273,15 @@ void test_partitioning(const struct scene *cuda_scene)
   display_octree_rec(octree);
 
 
+  struct AABB scale;
+  cudaMemcpy(&scale, resulting_scale, sizeof(struct AABB), cudaMemcpyDefault);
+  struct ray ray {
+    .origin = { .x = 0.0, .y = 0.0, .z = 0.0 },
+    .direction = { .x = 0.0, .y = 0.0, .z = 1.0 }
+  };
+  // Test ray intersection.
+  std::cout << "ray it aabb: " << hit_aabb(&scale, &ray) << std::endl;
+
   cudaFree(aabbs);
   cudaFree(resulting_scale);
   cudaFree(positions);

@@ -1,5 +1,7 @@
 #include "aabb.h"
 
+
+
 /*
  * Compute the axis-aligned bounding box,
  * but doing it per objects: each thread is reponsible
@@ -35,11 +37,46 @@ __global__ void object_compute_bounding_box(const struct scene *const scene, str
   aabbs[object_index].max = max_point;
 }
 
-void compute_bounding_box(const struct scene *const scene, struct AABB *aabbs)
-{
-  // Compute the boundign box per objects.
-  dim3 threadsPerBlock(32);
-  dim3 numBlocks(ceil(scene->object_count * 1.0 / threadsPerBlock.x));
 
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(scene, aabbs);
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+__host__ __device__ bool hit_aabb(const struct AABB *const aabb, const struct ray *const ray)
+{
+  float tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+  vector3 inv_direction = make_float3(// If == zero, should map to infinity
+    1 / ray->direction.x,
+    1 / ray->direction.y,
+    1 / ray->direction.z
+  );
+
+  int sign_x = (inv_direction.x < 0);
+  int sign_y = (inv_direction.y < 0);
+  int sign_z = (inv_direction.z < 0);
+
+  tmin = ((sign_x ? aabb->max.x : aabb->min.x) - ray->origin.x) * inv_direction.x;
+  tmax = ((sign_x ? aabb->min.x : aabb->max.x) - ray->origin.x) * inv_direction.x;
+  tymin = ((sign_y ? aabb->max.y : aabb->min.y) - ray->origin.y) * inv_direction.y;
+  tymax = ((sign_y ? aabb->min.y : aabb->max.y) - ray->origin.y) * inv_direction.y;
+
+  if ((tmin > tymax) || (tymin > tmax))
+    return false;
+  if (tymin > tmin)
+    tmin = tymin;
+  if (tymax < tmax)
+    tmax = tymax;
+
+  tzmin = ((sign_z ? aabb->max.z : aabb->min.z) - ray->origin.z) * inv_direction.z;
+  tzmax = ((sign_z ? aabb->min.z : aabb->max.z) - ray->origin.z) * inv_direction.z;
+
+  if ((tmin > tzmax) || (tzmin > tmax))
+    return false;
+
+  /*
+  if (tzmin > tmin)
+    tmin = tzmin;
+  if (tzmax < tmax)
+    tmax = tzmax;
+  */
+
+  return true;
 }
