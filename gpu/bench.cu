@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "partitioning/aabb.h"
 #include "partitioning/octree.h"
+#include "partitioning/utils.h"
 
 #define TESTS_PATH "../../tests/"
 
@@ -52,7 +53,7 @@ void BM_aabb_object(benchmark::State& st, const char *filename)
   cudaFree(aabbs);
 }
 
-FULL_BENCHMARK(BM_aabb_object);
+//FULL_BENCHMARK(BM_aabb_object);
 
 
 /*
@@ -239,49 +240,28 @@ FULL_BENCHMARK(BM_nodes_difference);
 /*
  * Benchmark the octree node difference prefix array computation.
  */
-void BM_nodes_difference_to_prefix_array_single_thread(benchmark::State& st, const char *filename)
+void BM_prefix_sum_single_thread(benchmark::State& st)
 {
-  struct scene scene = parser(filename);
-  struct scene *cuda_scene = to_cuda(&scene);
+  constexpr size_t size = 10000;
+  size_t *array = new size_t[size];
 
-  dim3 threadsPerBlock(32);
-  dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
+  // Random initialisation
+  for (size_t i = 0; i < size; ++i)
+    array[i] = rand();
 
-  // Compute the bounding box
-  struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  size_t *GPU_array;
+  cudaMalloc(&GPU_array, sizeof(size_t) * size);
+  cudaMemcpy(GPU_array, array, sizeof(size_t) * size, cudaMemcpyDefault);
 
-  // Compute the global scale
-  struct AABB *resulting_scale;
-  cudaMalloc(&resulting_scale, sizeof(struct AABB));
-  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, scene.object_count, resulting_scale);
-
-  // Get the position of all objects
-  octree_generation_position *positions;
-  cudaMalloc(&positions, sizeof(octree_generation_position) * scene.object_count);
-  position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
-
-  // Sort all objects for easier nodes difference
-  size_t *positions_sorted_index;
-  cudaMalloc(&positions_sorted_index, sizeof(size_t) * scene.object_count);
-  single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, scene.object_count);
-
-  // Compute the nodes difference
-  size_t *nodes_difference;
-  cudaMalloc(&nodes_difference, sizeof(size_t) * scene.object_count);
-  nodes_difference_array<<<numBlocks, threadsPerBlock>>>(positions, nodes_difference, scene.object_count);
 
   for (auto _ : st)
-    single_thread_nodes_difference_to_prefix_array<<<1, 1>>>(nodes_difference, scene.object_count);
+    single_thread_prefix_sum(GPU_array, size);
 
-  cudaFree(aabbs);
-  cudaFree(positions);
-  cudaFree(positions_sorted_index);
-  cudaFree(nodes_difference);
+  delete[] array;
+  cudaFree(GPU_array);
 }
 
-FULL_BENCHMARK(BM_nodes_difference_to_prefix_array_single_thread);
+BENCHMARK(BM_prefix_sum_single_thread);
 
 
 /*
@@ -320,7 +300,7 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
   cudaMalloc(&nodes_difference, sizeof(size_t) * scene.object_count);
   nodes_difference_array<<<numBlocks, threadsPerBlock>>>(positions, nodes_difference, scene.object_count);
 
-  single_thread_nodes_difference_to_prefix_array<<<1, 1>>>(nodes_difference, scene.object_count);
+  single_thread_prefix_sum(nodes_difference, scene.object_count);
 
   // Create the resulting octree
   size_t nb_nodes;

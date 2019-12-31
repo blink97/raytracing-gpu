@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "partitioning/aabb.h"
 #include "partitioning/octree.h"
+#include "partitioning/utils.h"
 
 #include <iostream>
 #include <string>
@@ -257,7 +258,7 @@ void test_partitioning(const struct scene *cuda_scene)
   display_node_differences(positions, node_differences, CPU_scene.object_count);
 
   // Perform a prefix sum on it
-  single_thread_nodes_difference_to_prefix_array<<<1, 1>>>(node_differences, CPU_scene.object_count);
+  shared_prefix_sum(node_differences, CPU_scene.object_count);
   display_node_differences(positions, node_differences, CPU_scene.object_count);
 
   // Create the resulting octree
@@ -282,11 +283,30 @@ void test_partitioning(const struct scene *cuda_scene)
   // Test ray intersection.
   std::cout << "ray it aabb: " << hit_aabb(&scale, &ray) << std::endl;
 
+  cudaFree(octree);
   cudaFree(aabbs);
   cudaFree(resulting_scale);
   cudaFree(positions);
   cudaFree(node_differences);
-  cudaFree(octree);
+}
+
+void test_prefix_sum()
+{
+  constexpr size_t size = 15;
+  size_t cpu_values[size];
+  for (size_t i = 0; i < size; ++i)
+    cpu_values[i] = i + 1;
+
+  size_t *values;
+  cudaMalloc(&values, sizeof(size_t) * size);
+  cudaMemcpy(values, cpu_values, sizeof(size_t) * size, cudaMemcpyDefault);
+  shared_prefix_sum(values, size);
+  cudaMemcpy(cpu_values, values, sizeof(size_t) * size, cudaMemcpyDefault);
+
+  for (size_t i = 0; i < size; ++i)
+    std::cout << (i + 1) << ": " << cpu_values[i] << std::endl;
+
+  cudaFree(values);
 }
 
 int main(int argc, char *argv[])
@@ -312,4 +332,5 @@ int main(int argc, char *argv[])
   struct scene *cuda_scene = to_cuda(&scene);
 
   test_partitioning(cuda_scene);
+  //test_prefix_sum();
 }

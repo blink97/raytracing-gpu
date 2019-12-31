@@ -120,19 +120,6 @@ __global__ void nodes_difference_array(
 
 
 /*
- * Compute the prefix sum array for the nodes difference.
- * This allows to simply knows how many octree nodes must be
- * created in advance, and allowing fast octree construction,
- * as the octree can be fully constructed in parallel.
- * The number of octree nodes that need to be created
- * is the last value in the array.
- */
-__global__ void single_thread_nodes_difference_to_prefix_array(
-  size_t *nodes_difference,
-  size_t nb_objects
-);
-
-/*
  * Create the full octree.
  * The number of octree node created is the last value
  * of the prefix array.

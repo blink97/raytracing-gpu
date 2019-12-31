@@ -262,22 +262,6 @@ __global__ void nodes_difference_array(
 }
 
 
-__global__ void single_thread_nodes_difference_to_prefix_array(
-  size_t *nodes_difference,
-  size_t nb_objects)
-{
-  if (blockIdx.x * blockDim.x + threadIdx.x > 1)
-    return; // Nothing to do here, prefix array is single thread.
-
-  size_t previous = 0;
-  for (size_t i = 0; i < nb_objects; ++i)
-  {
-    previous = nodes_difference[i] + previous;
-    nodes_difference[i] = previous;
-  }
-}
-
-
 __device__ void get_aabb_box(
   uint8_t x, uint8_t y, uint8_t z, uint8_t level,
   const struct AABB *const scale, struct AABB *octree_aabb)
