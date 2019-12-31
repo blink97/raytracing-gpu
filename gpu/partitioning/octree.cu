@@ -278,15 +278,18 @@ __global__ void single_thread_nodes_difference_to_prefix_array(
 }
 
 
-__device__ vector3 get_center(uint8_t x, uint8_t y, uint8_t z, uint8_t level, const struct AABB *const scale)
+__device__ void get_aabb_box(
+  uint8_t x, uint8_t y, uint8_t z, uint8_t level,
+  const struct AABB *const scale, struct AABB *octree_aabb)
 {
-  float center_offset = pow(0.5, level) * 0.5;
-  vector3 center = {
-    .x = ((float)(x / 256.0) + center_offset) * (scale->max.x - scale->min.x) - scale->min.x,
-    .y = ((float)(y / 256.0) + center_offset) * (scale->max.y - scale->min.y) - scale->min.y,
-    .z = ((float)(z / 256.0) + center_offset) * (scale->max.z - scale->min.z) - scale->min.z
-  };
-  return center;
+  float aabb_size = pow(0.5, level);
+  octree_aabb->min.x = ((float)(x / 256.0)) * (scale->max.x - scale->min.x) - scale->min.x;
+  octree_aabb->min.y = ((float)(y / 256.0)) * (scale->max.y - scale->min.y) - scale->min.y;
+  octree_aabb->min.z = ((float)(z / 256.0)) * (scale->max.z - scale->min.z) - scale->min.z;
+
+  octree_aabb->max.x = ((float)(x / 256.0) + aabb_size) * (scale->max.x - scale->min.x) - scale->min.x;
+  octree_aabb->max.y = ((float)(y / 256.0) + aabb_size) * (scale->max.y - scale->min.y) - scale->min.y;
+  octree_aabb->max.z = ((float)(z / 256.0) + aabb_size) * (scale->max.z - scale->min.z) - scale->min.z;
 }
 
 __global__ void create_octree(
@@ -335,12 +338,12 @@ __global__ void create_octree(
     {
       resulting_octree[i - 1].start_index = index;
       resulting_octree[i - 1].end_index = index;
-      resulting_octree[i - 1].center = get_center(x, y, z, level - (current_diff - i), scale);
+      get_aabb_box(x, y, z, level - (current_diff - i), scale, &resulting_octree[i - 1].box);
     }
 
     // Set the starting index.
     resulting_octree[current_diff - 1].start_index = index;
-    resulting_octree[current_diff - 1].center = get_center(x, y, z, level, scale);
+    get_aabb_box(x, y, z, level, scale, & resulting_octree[current_diff - 1].box);
   }
 
   if (index + 1 >= nb_objects || nodes_difference[index + 1] != current_diff)

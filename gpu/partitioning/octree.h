@@ -12,9 +12,8 @@
  */
 struct octree
 {
-  // The current center of the octree.
-  // All children are placed around this center.
-  vector3 center;
+  // The box englobing the octree.
+  struct AABB box;
 
   // The objects index in the scene at which this level start.
   size_t start_index;

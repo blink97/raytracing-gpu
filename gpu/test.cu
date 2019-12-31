@@ -171,7 +171,8 @@ void display_octree_iter(
     cudaMemcpy(&start_pos, positions + cpu_octree[i].start_index, sizeof(octree_generation_position), cudaMemcpyDefault);
 
     std::cout << "index: " << i << std::endl
-              << "center: " << cpu_octree[i].center.x << " " << cpu_octree[i].center.y << " " << cpu_octree[i].center.z << std::endl
+              << "box: " << cpu_octree[i].box.min.x << "," << cpu_octree[i].box.min.y << "," << cpu_octree[i].box.min.z
+              << " || " << cpu_octree[i].box.max.x << "," << cpu_octree[i].box.max.y << "," << cpu_octree[i].box.max.z << std::endl
               << "range (" << cpu_octree[i].start_index << "," << cpu_octree[i].end_index << ")" << std::endl
               << "level: " << (int)get_level(start_pos) << std::endl
               << "position: " << std::bitset<32>(start_pos) << std::endl;
@@ -200,7 +201,8 @@ void display_octree_rec(const struct octree *const octree, size_t current_level 
 
   auto indent = std::string(current_level, '\t');
 
-  std::cout << indent << "center: " << cpu_octree.center.x << " " << cpu_octree.center.y << " " << cpu_octree.center.z << std::endl
+  std::cout << indent << "box: " << cpu_octree.box.min.x << "," << cpu_octree.box.min.y << "," << cpu_octree.box.min.z
+            << " || " << cpu_octree.box.max.x << "," << cpu_octree.box.max.y << "," << cpu_octree.box.max.z << std::endl
             << indent << "range (" << cpu_octree.start_index << "," << cpu_octree.end_index << ")" << std::endl;
 
   for (int i = 0; i < 8; ++i)
@@ -240,13 +242,13 @@ void test_partitioning(const struct scene *cuda_scene)
   octree_generation_position *positions;
   cudaMalloc(&positions, sizeof(octree_generation_position) * CPU_scene.object_count);
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, CPU_scene.object_count);
-  //display_positions(positions, nullptr, CPU_scene.object_count);
+  display_positions(positions, nullptr, CPU_scene.object_count);
 
   // Sort the position of the objects
   size_t *positions_sorted_index;
   cudaMalloc(&positions_sorted_index, sizeof(size_t) * CPU_scene.object_count);
   single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, CPU_scene.object_count);
-  //display_positions(positions, positions_sorted_index, CPU_scene.object_count);
+  display_positions(positions, positions_sorted_index, CPU_scene.object_count);
 
   // Get the number of nodes needed per each objects
   size_t *node_differences;
