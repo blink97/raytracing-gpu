@@ -1,24 +1,21 @@
 #include "prefix_sum.h"
 
-__global__ void single_thread_prefix_sum_kernel(size_t *array, size_t size)
+void single_thread_prefix_sum(size_t *array, size_t size)
 {
-  if (blockIdx.x * blockDim.x + threadIdx.x > 1)
-    return; // Nothing to do here, prefix array is single thread.
+  size_t *cpu_array = new size_t[size];
+  cudaMemcpy(cpu_array, array, sizeof(size_t) * size, cudaMemcpyDefault);
 
   size_t previous = 0;
   for (size_t i = 0; i < size; ++i)
   {
-    previous = array[i] + previous;
-    array[i] = previous;
+    previous = cpu_array[i] + previous;
+    cpu_array[i] = previous;
   }
+
+  cudaMemcpy(array, cpu_array, sizeof(size_t) * size, cudaMemcpyDefault);
+
+  delete[] cpu_array;
 }
-
-void single_thread_prefix_sum(size_t *array, size_t size)
-{
-  single_thread_prefix_sum_kernel<<<1, 1>>>(array, size);
-}
-
-
 
 
 

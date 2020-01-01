@@ -6,6 +6,7 @@
 #include "partitioning/prefix_sum.h"
 #include "partitioning/sort.h"
 
+#include <cassert>
 #include <iostream>
 #include <string>
 #include <bitset>
@@ -233,7 +234,7 @@ void test_partitioning(const struct scene *cuda_scene)
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
   object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
-  //display_aabbs(aabbs, CPU_scene.object_count);
+  display_aabbs(aabbs, CPU_scene.object_count);
 
   // Compute the global scale
   struct AABB *resulting_scale;
@@ -248,8 +249,8 @@ void test_partitioning(const struct scene *cuda_scene)
   display_positions(positions, nullptr, CPU_scene.object_count);
 
   // Sort the position of the objects
-  single_thread_bubble_sort(positions, CPU_scene.objects, CPU_scene.object_count);
-  //parallel_radix_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+  //single_thread_bubble_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+  parallel_radix_sort(positions, CPU_scene.objects, CPU_scene.object_count);
   display_positions(positions, CPU_scene.objects, CPU_scene.object_count);
 
   // Get the number of nodes needed per each objects
@@ -272,7 +273,7 @@ void test_partitioning(const struct scene *cuda_scene)
   cudaMalloc(&octree, sizeof(struct octree) * nb_nodes);
   create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, octree);
   display_octree_iter(octree, positions, nb_nodes);
-  //display_octree_rec(octree);
+  display_octree_rec(octree);
 
 
   struct AABB scale;
@@ -310,6 +311,39 @@ void test_prefix_sum()
   cudaFree(values);
 }
 
+
+void test_sort()
+{
+  constexpr size_t size = 385;
+  uint32_t *array = new uint32_t[size];
+
+  // Random initialisation
+  for (size_t i = 0; i < size; ++i)
+    array[i] = i;
+
+  uint32_t *GPU_keys;
+  cudaMalloc(&GPU_keys, sizeof(uint32_t) * size);
+
+  // Is absolutely not used, but is needed for the function
+  size_t *GPU_values;
+  cudaMalloc(&GPU_values, sizeof(size_t) * size);
+
+  cudaMemcpy(GPU_keys, array, sizeof(uint32_t) * size, cudaMemcpyDefault);
+  parallel_radix_sort(GPU_keys, GPU_values, size);
+
+  // Assert that the values are sorted
+  cudaMemcpy(array, GPU_keys, sizeof(uint32_t) * size, cudaMemcpyDefault);
+  for (size_t i = 0; i + 1 < size; ++i)
+  {
+    std::cout << i << ": " << array[i] << " " << array[i + 1]
+              << " bits: " << std::bitset<32>(array[i]) << " " << std::bitset<32>(array[i + 1]) << std::endl;
+  }
+
+  delete[] array;
+  cudaFree(GPU_keys);
+  cudaFree(GPU_values);
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -324,9 +358,9 @@ int main(int argc, char *argv[])
   display_GPU_memory();
 
   //struct scene scene = parser(CUBE);
-  struct scene scene = parser(DARK_NIGHT);
+  //struct scene scene = parser(DARK_NIGHT);
   //struct scene scene = parser(ISLAND_SMOOTH);
-  //struct scene scene = parser(SPHERES);
+  struct scene scene = parser(SPHERES);
 
   display_GPU_memory();
 
@@ -334,4 +368,5 @@ int main(int argc, char *argv[])
 
   test_partitioning(cuda_scene);
   //test_prefix_sum();
+  //test_sort();
 }

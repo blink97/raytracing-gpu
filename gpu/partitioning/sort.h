@@ -12,6 +12,9 @@
  */
 
 template<typename T>
+__device__ __host__ void bubble_sort(uint32_t *keys, T *values, size_t size);
+
+template<typename T>
 void single_thread_bubble_sort(uint32_t *keys, T *values, size_t size);
 
 
