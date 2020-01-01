@@ -56,7 +56,7 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
   if (px >= width || py >= height)
     return;
 
-  uint32_t* lineptr = (uint32_t*)(buff + py * pitch);
+  uint32_t* lineptr = (uint32_t*)(buff + (height - py - 1) * pitch);
 
   vector3 ui = vector3_scale(*u, px - width / 2);
   vector3 vj = vector3_scale(*v, py - height / 2);
@@ -68,7 +68,7 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
   struct color color = trace(scene, ray, 1);
 //  struct color color = init_color(0, 1, 0);
 
-  lineptr[px] = *(uint32_t *)&color;
+  lineptr[width - px - 1] = *(uint32_t *)&color;
 }
 
 float host_v_len(vector3 a) {
