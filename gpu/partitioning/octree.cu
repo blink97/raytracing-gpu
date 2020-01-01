@@ -199,38 +199,6 @@ __global__ void position_object(
 }
 
 
-__global__ void single_thread_bubble_argsort(
-  octree_generation_position *positions,
-  size_t *indexes,
-  size_t nb_objects)
-{
-  if (blockIdx.x * blockDim.x + threadIdx.x > 1)
-    return; // Nothing to do here, sort is single thread.
-
-  // First, create the range.
-  for (size_t i = 0; i < nb_objects; ++i)
-    indexes[i] = i;
-
-  // Then bubble sort the way out of the array.
-  for (size_t i = nb_objects - 1; i > 0; --i)
-  {
-    for (size_t j = 0; j < i; ++j)
-    {
-      if (positions[j + 1] < positions[j])
-      {
-        size_t temp_index = indexes[j];
-        octree_generation_position temp_position = positions[j];
-
-        indexes[j] = indexes[j + 1];
-        positions[j] = positions[j + 1];
-
-        indexes[j + 1] = temp_index;
-        positions[j + 1] = temp_position;
-      }
-    }
-  }
-}
-
 __global__ void nodes_difference_array(
   const octree_generation_position *const sorted_positions,
   size_t *nodes_difference,

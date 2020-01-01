@@ -3,7 +3,8 @@
 #include "parser.h"
 #include "partitioning/aabb.h"
 #include "partitioning/octree.h"
-#include "partitioning/utils.h"
+#include "partitioning/prefix_sum.h"
+#include "partitioning/sort.h"
 
 #include <iostream>
 #include <string>
@@ -98,20 +99,20 @@ void display_aabbs(const struct AABB *aabbs, size_t nb_objects)
 
 void display_positions(
   const octree_generation_position *positions,
-  size_t *positions_sorted_index,
+  struct object *objects,
   size_t nb_objects)
 {
-  std::cout << "displaying positions" << (positions_sorted_index ? " sorted": " unsorted") << std::endl;
+  std::cout << "displaying positions" << (objects ? " sorted": " unsorted") << std::endl;
 
   octree_generation_position *cpu_positions;
   cudaMallocHost(&cpu_positions, sizeof(octree_generation_position) * nb_objects);
   cudaMemcpy(cpu_positions, positions, sizeof(octree_generation_position) * nb_objects, cudaMemcpyDefault);
 
-  size_t *cpu_positions_sorted_index = nullptr;
-  if (positions_sorted_index)
+  struct object *cpu_objects = nullptr;
+  if (objects)
   {
-    cudaMallocHost(&cpu_positions_sorted_index, sizeof(size_t) * nb_objects);
-    cudaMemcpy(cpu_positions_sorted_index, positions_sorted_index, sizeof(size_t) * nb_objects, cudaMemcpyDefault);
+    cudaMallocHost(&cpu_objects, sizeof(struct object) * nb_objects);
+    cudaMemcpy(cpu_objects, objects, sizeof(struct object) * nb_objects, cudaMemcpyDefault);
   }
 
   for (int i = 0; i < nb_objects; ++i)
@@ -119,16 +120,17 @@ void display_positions(
     std::cout << "level: " << (int)get_level(cpu_positions[i])
               << " " << std::bitset<32>(cpu_positions[i]);
 
-    if (positions_sorted_index)
+    if (cpu_objects)
     {
-      std::cout << " position: " << cpu_positions_sorted_index[i];
+      std::cout << " triangle count: " << cpu_objects[i].triangle_count;
     }
 
     std::cout << std::endl;
   }
 
   cudaFreeHost(cpu_positions);
-  if (positions_sorted_index) cudaFreeHost(cpu_positions_sorted_index);
+  if (cpu_objects)
+    cudaFreeHost(cpu_objects);
 }
 
 void display_node_differences(
@@ -231,12 +233,12 @@ void test_partitioning(const struct scene *cuda_scene)
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
   object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
-  display_aabbs(aabbs, CPU_scene.object_count);
+  //display_aabbs(aabbs, CPU_scene.object_count);
 
   // Compute the global scale
   struct AABB *resulting_scale;
   cudaMalloc(&resulting_scale, sizeof(struct AABB));
-  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
+  //find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
   display_aabbs(resulting_scale, 1);
 
   // Compute the position of the objects
@@ -246,10 +248,9 @@ void test_partitioning(const struct scene *cuda_scene)
   display_positions(positions, nullptr, CPU_scene.object_count);
 
   // Sort the position of the objects
-  size_t *positions_sorted_index;
-  cudaMalloc(&positions_sorted_index, sizeof(size_t) * CPU_scene.object_count);
-  single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, CPU_scene.object_count);
-  display_positions(positions, positions_sorted_index, CPU_scene.object_count);
+  single_thread_bubble_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+  //parallel_radix_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+  display_positions(positions, CPU_scene.objects, CPU_scene.object_count);
 
   // Get the number of nodes needed per each objects
   size_t *node_differences;
@@ -271,7 +272,7 @@ void test_partitioning(const struct scene *cuda_scene)
   cudaMalloc(&octree, sizeof(struct octree) * nb_nodes);
   create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, octree);
   display_octree_iter(octree, positions, nb_nodes);
-  display_octree_rec(octree);
+  //display_octree_rec(octree);
 
 
   struct AABB scale;

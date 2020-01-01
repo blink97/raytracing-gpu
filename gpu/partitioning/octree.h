@@ -94,17 +94,6 @@ __global__ void position_object(
 
 
 /*
- * Sort the positions so that the tree creation can be done
- * simply, as objects on the same octree are placed next to
- * each other.
- */
-__global__ void single_thread_bubble_argsort(
-  octree_generation_position *positions,
-  size_t *indexes,
-  size_t nb_objects
-);
-
-/*
  * Get the number of nodes in the octree that needs to be created
  * for each position, excluding the ones already created
  * by other nodes. Positions must be sorted, as it allows

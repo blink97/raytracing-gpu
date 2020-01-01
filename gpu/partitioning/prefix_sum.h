@@ -1,5 +1,5 @@
-#ifndef PARTITIONING_UTILS_H
-# define PARTITIONING_UTILS_H
+#ifndef PREFIX_SUM_H
+# define PREFIX_SUM_H
 
 /*
  * Compute the prefix sum array of an array.
@@ -14,4 +14,4 @@ void single_thread_prefix_sum(size_t *array, size_t size);
 
 void shared_prefix_sum(size_t *array, size_t size);
 
-#endif /* !PARTITIONING_UTILS_H */
+#endif /* !PREFIX_SUM_H */

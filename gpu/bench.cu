@@ -4,7 +4,8 @@
 #include "parser.h"
 #include "partitioning/aabb.h"
 #include "partitioning/octree.h"
-#include "partitioning/utils.h"
+#include "partitioning/prefix_sum.h"
+#include "partitioning/sort.h"
 
 #define TESTS_PATH "../../tests/"
 
@@ -153,37 +154,29 @@ FULL_BENCHMARK(BM_position_object);
  */
 void BM_sort_object_bubble_sort(benchmark::State& st, const char *filename)
 {
-  struct scene scene = parser(filename);
-  struct scene *cuda_scene = to_cuda(&scene);
+  constexpr size_t size = 10000;
+  uint32_t *array = new uint32_t[size];
 
-  dim3 threadsPerBlock(32);
-  dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
+  // Random initialisation
+  for (size_t i = 0; i < size; ++i)
+    array[i] = rand();
 
-  // Compute the bounding box
-  struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  uint32_t *GPU_keys;
+  cudaMalloc(&GPU_keys, sizeof(uint32_t) * size);
 
-  // Compute the global scale
-  struct AABB *resulting_scale;
-  cudaMalloc(&resulting_scale, sizeof(struct AABB));
-  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, scene.object_count, resulting_scale);
+  // Is absolutely not used, but is needed for the function
+  size_t *GPU_values;
+  cudaMalloc(&GPU_values, sizeof(size_t) * size);
 
-  // Get the position of all objects
-  octree_generation_position *positions;
-  cudaMalloc(&positions, sizeof(octree_generation_position) * scene.object_count);
-  position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
-
-  size_t *positions_sorted_index;
-  cudaMalloc(&positions_sorted_index, sizeof(size_t) * scene.object_count);
 
   for (auto _ : st)
-    single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, scene.object_count);
+  {// Copy the array each times as the second times, the GPU_keys is already sorted
+    cudaMemcpy(GPU_keys, array, sizeof(uint32_t) * size, cudaMemcpyDefault);
+    single_thread_bubble_sort(GPU_keys, GPU_values, size);
+  }
 
-
-  cudaFree(aabbs);
-  cudaFree(positions);
-  cudaFree(positions_sorted_index);
+  delete[] array;
+  cudaFree(GPU_keys);
 }
 
 FULL_BENCHMARK(BM_sort_object_bubble_sort);
@@ -196,6 +189,9 @@ void BM_nodes_difference(benchmark::State& st, const char *filename)
 {
   struct scene scene = parser(filename);
   struct scene *cuda_scene = to_cuda(&scene);
+
+  struct scene CPU_scene;
+  cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
 
   dim3 threadsPerBlock(32);
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
@@ -216,9 +212,7 @@ void BM_nodes_difference(benchmark::State& st, const char *filename)
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
 
   // Sort all objects for easier nodes difference
-  size_t *positions_sorted_index;
-  cudaMalloc(&positions_sorted_index, sizeof(size_t) * scene.object_count);
-  single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, scene.object_count);
+  single_thread_bubble_sort(positions, CPU_scene.objects, scene.object_count);
 
   // Compute the nodes difference
   size_t *nodes_difference;
@@ -230,7 +224,6 @@ void BM_nodes_difference(benchmark::State& st, const char *filename)
 
   cudaFree(aabbs);
   cudaFree(positions);
-  cudaFree(positions_sorted_index);
   cudaFree(nodes_difference);
 }
 
@@ -272,6 +265,9 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
   struct scene scene = parser(filename);
   struct scene *cuda_scene = to_cuda(&scene);
 
+  struct scene CPU_scene;
+  cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
   dim3 threadsPerBlock(32);
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
 
@@ -291,9 +287,7 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
 
   // Sort all objects for easier nodes difference
-  size_t *positions_sorted_index;
-  cudaMalloc(&positions_sorted_index, sizeof(size_t) * scene.object_count);
-  single_thread_bubble_argsort<<<1, 1>>>(positions, positions_sorted_index, scene.object_count);
+  single_thread_bubble_sort(positions, CPU_scene.objects, scene.object_count);
 
   // Compute the nodes difference
   size_t *nodes_difference;
@@ -313,7 +307,6 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
 
   cudaFree(aabbs);
   cudaFree(positions);
-  cudaFree(positions_sorted_index);
   cudaFree(nodes_difference);
   cudaFree(octree);
 }

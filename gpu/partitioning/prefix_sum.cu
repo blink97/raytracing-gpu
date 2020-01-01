@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "prefix_sum.h"
 
 __global__ void single_thread_prefix_sum_kernel(size_t *array, size_t size)
 {
@@ -22,11 +22,10 @@ void single_thread_prefix_sum(size_t *array, size_t size)
 
 
 
-// What must be the size of the block that are done per block.
-// This also correspond to the number of thread that will be launched,
-// So this number must not be above 1024.
-// This number os currently small for testing purpose.
-#define PREFIX_SUM_BLOCK_SIZE 4
+// What must be the size of the values block that are done per cuda block.
+// This also correspond to the number of threads that will be
+// launched per blocks, so this number must not be above 1024.
+#define PREFIX_SUM_BLOCK_SIZE 128
 
 __device__ __host__ size_t get_shared_prefix_sum_buffer_size(size_t size)
 {

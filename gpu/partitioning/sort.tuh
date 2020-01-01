@@ -1,0 +1,163 @@
+#include "sort.h"
+
+#include "prefix_sum.h"
+
+template<typename T>
+__global__ void single_thread_bubble_sort_kernel(uint32_t *keys, T *values, size_t size)
+{
+  if (blockIdx.x * blockDim.x + threadIdx.x > 1)
+    return; // Nothing to do here, sort is single thread.
+
+  // Then bubble sort the way out of the array.
+  for (size_t i = size - 1; i > 0; --i)
+  {
+    for (size_t j = 0; j < i; ++j)
+    {
+      if (keys[j + 1] < keys[j])
+      {
+        T tmp_value = values[j];
+        uint32_t tmp_key = keys[j];
+
+        values[j] = values[j + 1];
+        keys[j] = keys[j + 1];
+
+        values[j + 1] = tmp_value;
+        keys[j + 1] = tmp_key;
+      }
+    }
+  }
+}
+
+template<typename T>
+void single_thread_bubble_sort(uint32_t *keys, T *values, size_t size)
+{
+  single_thread_bubble_sort_kernel<<<1, 1>>>(keys, values, size);
+}
+
+// How many bits are done per iteration
+#define RADIX_SORT_BITS_PER_BLOCK 2
+// How many values are present in the defined block.
+#define RADIX_SORT_BITS_VALUES (1 << RADIX_SORT_BITS_PER_BLOCK)
+// What must be the size of the values block that are done per cuda block.
+// This also correspond to the number of threads that will be
+// launched per blocks, so this number must not be above 1024.
+#define RADIX_SORT_BLOCK_SIZE 128
+
+__device__ size_t get_key_part(size_t key, size_t offset)
+{
+  return (key >> offset) & (RADIX_SORT_BITS_VALUES - 1);
+}
+
+__global__ void radix_sort_frequency(
+  const uint32_t *const keys,
+  size_t size,
+  size_t offset,
+  size_t *frequency)
+{
+
+  size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index >= size) return; // Nothing to do here
+
+  frequency[size * get_key_part(keys[index], offset) + index] = 1;
+
+}
+
+__global__ void radix_sort_global_frequency(
+  const size_t *const frequency,
+  size_t size,
+  size_t *global_frequency)
+{
+  static_assert(RADIX_SORT_BITS_VALUES <= 1024, "All the computation must happen in one block");
+
+  size_t index = threadIdx.x;
+  if (index >= RADIX_SORT_BITS_VALUES) return;// Nothing to do here
+
+  global_frequency[index] = frequency[(index + 1) * size - 1];
+}
+
+template<typename T>
+__global__ void radix_sort_move_all(
+  uint32_t *keys,
+  T* values,
+  size_t size,
+  size_t offset,
+  const size_t *const frequency,
+  const size_t *const global_frequency)
+{
+  size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index >= size) return; // Nothing to do here
+
+  // Save all key and value as the array will be completly rewritten
+  uint32_t current_key = keys[index];
+  T current_value = values[index];
+
+
+  __syncthreads();
+
+
+  // Find where to store the new key and value
+  size_t key_part = get_key_part(current_key, offset);
+  size_t new_index =
+    // How much place takes the last one
+    (key_part == 0 ? 0 : global_frequency[key_part - 1])
+    // Where to place the current value, we need to substract one
+    // as the frequency tell the number (1-based indexing),
+    // whereas we need the index (0-based indexing)
+    + frequency[size * key_part + index] - 1;
+
+  // Store the keys and the values to their new position
+  keys[new_index] = current_key;
+  values[new_index] = current_value;
+}
+
+template<typename T>
+void parallel_radix_sort(uint32_t *keys, T *values, size_t size)
+{
+  size_t nb_blocks = ceil((float)size / (float)RADIX_SORT_BLOCK_SIZE);
+
+  // Allocate a buffer of all prefix sum
+  size_t frequency_size = size * RADIX_SORT_BITS_VALUES;
+  size_t *frequency;
+  cudaMalloc(&frequency, sizeof(size_t) * frequency_size);
+
+  size_t *global_frequency;
+  cudaMalloc(&global_frequency, sizeof(size_t) * RADIX_SORT_BITS_VALUES);
+
+  // Perform the radix sort, block by block.
+  // The sort is least significant digit so that it can be stable.
+  for (size_t offset = 0; offset < sizeof(uint32_t) * 8; offset += RADIX_SORT_BITS_PER_BLOCK)
+  {
+    // Clear the frequency and global_frequency as they might contains
+    // the previous iteration results, and all functions expects a zeroed array.
+    cudaMemset(frequency, 0, sizeof(size_t) * frequency_size);
+    cudaMemset(global_frequency, 0, sizeof(size_t) * RADIX_SORT_BITS_VALUES);
+
+    // No order check is performed, as the key distribution means that
+    // they will not be ordered until the last iteration.
+
+
+    // Compute the histogram per block, and save it in the prefix sum
+    radix_sort_frequency<<<nb_blocks, RADIX_SORT_BLOCK_SIZE>>>(keys, size, offset, frequency);
+
+    // Compute the prefix sum of each histograms,
+    // So that it is known here the position want to be sorted.
+    for (size_t i = 0; i < RADIX_SORT_BITS_VALUES; ++i)
+    {// Compute the prefix sum of all frequencies independently
+      shared_prefix_sum(frequency + (size * i), size);
+
+      // TODO: use stream ???
+    }
+
+    // Compute the general prefix_sum, so that each object know where they need to be placed.
+    radix_sort_global_frequency<<<1, RADIX_SORT_BITS_VALUES>>>(frequency, size, global_frequency);
+    shared_prefix_sum(global_frequency, RADIX_SORT_BITS_VALUES);
+
+    // Once all computation have been done, move the keys and values to their expected place.
+    radix_sort_move_all<<<nb_blocks, RADIX_SORT_BLOCK_SIZE>>>(
+      keys, values, size, offset, frequency, global_frequency
+    );
+  }
+
+  cudaFree(frequency);
+  cudaFree(global_frequency);
+}
