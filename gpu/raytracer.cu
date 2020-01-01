@@ -58,8 +58,8 @@ __global__ void raytrace(char* buff, int width, int height, size_t pitch,
 
   uint32_t* lineptr = (uint32_t*)(buff + py * pitch);
 
-  vector3 ui = vector3_scale(*u, px);
-  vector3 vj = vector3_scale(*v, py);
+  vector3 ui = vector3_scale(*u, px - width / 2);
+  vector3 vj = vector3_scale(*v, py - height / 2);
   vector3 point = vector3_add(vector3_add(*C, ui), vj);
   vector3 direction = vector3_normalize(vector3_sub(scene->camera.position, point));
   struct ray ray;
@@ -162,9 +162,10 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
   struct scene* cuda_scene = to_cuda(&scene);
   printf("lancement. %i %i %i %i.\n", wi, he, width, height);
   raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
-  printf("done..\n");
 
-  //cudaDeviceSynchronize();
+
+  cudaDeviceSynchronize();
+  printf("done..\n");
 
   if (cudaPeekAtLastError())
     abortError("Computation Error");
