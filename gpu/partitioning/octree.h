@@ -110,8 +110,9 @@ __global__ void nodes_difference_array(
 
 /*
  * Create the full octree.
- * The number of octree node created is the last value
- * of the prefix array.
+ * The number of octree nodes created is the last value of the prefix array.
+ *
+ * WARNING: the resulting_octree array must be zeroed before entering this function !
  */
 __global__ void create_octree(
   const octree_generation_position *const sorted_positions,

@@ -89,7 +89,9 @@ __global__ void find_scene_scale_shared(
 
   // Set the default value of the scale
   if (threadIdx.x == 0)
+  {
     shared_scale = aabbs[index];
+  }
   __syncthreads();
 
   atomicMinFloat(&shared_scale.min.x, aabbs[index].min.x);

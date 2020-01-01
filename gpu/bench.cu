@@ -412,6 +412,7 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
   cudaMemcpy(&nb_nodes, nodes_difference + (scene.object_count - 1), sizeof(size_t), cudaMemcpyDefault);
   struct octree *octree;
   cudaMalloc(&octree, sizeof(struct octree) * nb_nodes);
+  cudaMemset(octree, 0, sizeof(struct octree) * nb_nodes);
 
   for (auto _ : st)
     create_octree<<<numBlocks, threadsPerBlock>>>(positions, nodes_difference, scene.object_count, resulting_scale, octree);
@@ -433,7 +434,7 @@ FULL_BENCHMARK(BM_nodes_difference);
 FULL_BENCHMARK(BM_octree_creation);
 
 // Sorting
-BENCHMARK(BM_single_thread_bubble_sort);
+//BENCHMARK(BM_single_thread_bubble_sort);
 BENCHMARK(BM_single_thread_stable_sort);
 BENCHMARK(BM_parallel_radix_sort);
 

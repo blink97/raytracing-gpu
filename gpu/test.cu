@@ -239,7 +239,7 @@ void test_partitioning(const struct scene *cuda_scene)
   // Compute the global scale
   struct AABB *resulting_scale;
   cudaMalloc(&resulting_scale, sizeof(struct AABB));
-  //find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
+  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
   display_aabbs(resulting_scale, 1);
 
   // Compute the position of the objects
@@ -271,6 +271,7 @@ void test_partitioning(const struct scene *cuda_scene)
 
   struct octree *octree;
   cudaMalloc(&octree, sizeof(struct octree) * nb_nodes);
+  cudaMemset(octree, 0, sizeof(struct octree) * nb_nodes);
   create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, octree);
   display_octree_iter(octree, positions, nb_nodes);
   display_octree_rec(octree);
