@@ -219,7 +219,7 @@ void display_octree_rec(const struct octree *const octree, size_t current_level 
 
 void test_partitioning(const struct scene *cuda_scene)
 {
-  //display_cuda_scene(cuda_scene);
+  display_cuda_scene(cuda_scene);
 
   struct scene CPU_scene;
   cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
@@ -345,6 +345,15 @@ void test_sort()
   cudaFree(GPU_values);
 }
 
+
+void test_octree_creation(struct scene *cuda_scene)
+{
+  struct octree *octree;
+  create_octree(cuda_scene, &octree);
+
+  display_octree_rec(octree);
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -367,7 +376,9 @@ int main(int argc, char *argv[])
 
   struct scene *cuda_scene = to_cuda(&scene);
 
-  test_partitioning(cuda_scene);
+  //test_partitioning(cuda_scene);
   //test_prefix_sum();
   //test_sort();
+
+  test_octree_creation(cuda_scene);
 }

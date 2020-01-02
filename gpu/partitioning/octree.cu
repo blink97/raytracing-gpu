@@ -1,5 +1,8 @@
 #include "octree.h"
 
+#include "sort.h"
+#include "prefix_sum.h"
+
 __device__ __forceinline__ float atomicMinFloat(float *addr, float value)
 {
   float old = ((value >= 0)
@@ -361,4 +364,54 @@ __global__ void create_octree(
       ] = (resulting_octree + previous_diff);
     }
   }
+}
+
+void create_octree(
+  struct scene *scene,
+  struct octree **octree)
+{
+  struct scene CPU_scene;
+  cudaMemcpy(&CPU_scene, scene, sizeof(struct scene), cudaMemcpyDefault);
+
+  dim3 threadsPerBlock(32);
+  dim3 numBlocks(ceil(CPU_scene.object_count * 1.0 / threadsPerBlock.x));
+
+  // Compute the bounding box
+  struct AABB *aabbs;
+  cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
+  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(scene, aabbs);
+
+  // Compute the global scale
+  struct AABB *resulting_scale;
+  cudaMalloc(&resulting_scale, sizeof(struct AABB));
+  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
+
+  // Compute the position of the objects
+  octree_generation_position *positions;
+  cudaMalloc(&positions, sizeof(octree_generation_position) * CPU_scene.object_count);
+  position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, CPU_scene.object_count);
+
+  // Sort the position of the objects
+  parallel_radix_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+
+  // Get the number of nodes needed per each objects
+  size_t *node_differences;
+  cudaMalloc(&node_differences, sizeof(size_t) * CPU_scene.object_count);
+  nodes_difference_array<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count);
+
+  // Perform a prefix sum on it
+  shared_prefix_sum(node_differences, CPU_scene.object_count);
+
+  // Create the resulting octree
+  size_t nb_nodes;
+  cudaMemcpy(&nb_nodes, node_differences + (CPU_scene.object_count - 1), sizeof(size_t), cudaMemcpyDefault);
+
+  cudaMalloc(octree, sizeof(struct octree) * nb_nodes);
+  cudaMemset(*octree, 0, sizeof(struct octree) * nb_nodes);
+  create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, *octree);
+
+  cudaFree(aabbs);
+  cudaFree(resulting_scale);
+  cudaFree(positions);
+  cudaFree(node_differences);
 }

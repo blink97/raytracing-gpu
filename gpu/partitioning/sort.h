@@ -1,5 +1,5 @@
-#ifndef SORT_H
-# define SORT_H
+#ifndef PARTITIONING_SORT_H
+# define PARTITIONING_SORT_H
 
 /*
  * Sort the given values using the given keys for sorting.
@@ -23,4 +23,4 @@ void parallel_radix_sort(uint32_t *keys, T *values, size_t size);
 
 #include "sort.tuh"
 
-#endif /* !SORT_H */
+#endif /* !PARTITIONING_SORT_H */

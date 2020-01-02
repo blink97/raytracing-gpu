@@ -18,10 +18,10 @@ FetchContent_Declare(
   URL https://github.com/CLIUtils/CLI11/archive/v1.8.0.tar.gz
   )
 
-FetchContent_Declare(
-  spdlog
-  URL https://github.com/gabime/spdlog/archive/v1.4.2.tar.gz
-  )
+#FetchContent_Declare(
+#  spdlog
+#  URL https://github.com/gabime/spdlog/archive/v1.4.2.tar.gz
+#  )
 
 
 if (NOT GoogleBenchmark_POPULATED)
@@ -31,7 +31,7 @@ if (NOT GoogleBenchmark_POPULATED)
   add_subdirectory(${googlebenchmark_SOURCE_DIR} ${googlebenchmark_BINARY_DIR})
 endif()
 
-FetchContent_MakeAvailable(spdlog)
+#FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(CLI11)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
@@ -47,7 +47,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 add_library(renderer)
 include_directories(headers)
 target_compile_features(renderer PUBLIC cxx_std_14)
-target_link_libraries(renderer PRIVATE spdlog::spdlog)
+target_link_libraries(renderer PRIVATE)# spdlog::spdlog)
 
 target_sources(renderer PRIVATE
   colors.cpp
@@ -71,12 +71,12 @@ set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(rt rt.cpp)
 target_compile_features(rt PUBLIC cxx_std_17)
-target_link_libraries(rt PRIVATE spdlog::spdlog renderer)
+target_link_libraries(rt PRIVATE renderer)# spdlog::spdlog)
 
 add_executable(bench bench.cu)
 target_compile_features(bench PUBLIC cxx_std_14)
-target_link_libraries(bench PRIVATE spdlog::spdlog benchmark renderer)
+target_link_libraries(bench PRIVATE benchmark renderer)# spdlog::spdlog)
 
 add_executable(test test.cu)
 target_compile_features(test PUBLIC cxx_std_14)
-target_link_libraries(test PRIVATE spdlog::spdlog renderer)
+target_link_libraries(test PRIVATE renderer)# spdlog::spdlog)

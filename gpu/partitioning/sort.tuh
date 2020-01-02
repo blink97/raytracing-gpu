@@ -2,6 +2,9 @@
 
 #include "prefix_sum.h"
 
+// inline keyword avoids multiple definition errors, but produces warnings.
+#define TEMPLATE_COMPILATION __inline__
+
 template<typename T>
 __device__ __host__ void bubble_sort(uint32_t *keys, T *values, size_t size)
 {
@@ -51,15 +54,15 @@ void single_thread_bubble_sort(uint32_t *keys, T *values, size_t size)
 // What must be the size of the values block that are done per cuda block.
 // This also correspond to the number of threads that will be
 // launched per blocks, so this number must not be above 1024.
-#define RADIX_SORT_BLOCK_SIZE 4
+#define RADIX_SORT_BLOCK_SIZE 128
 
-__device__ size_t get_key_part(size_t key, size_t offset)
+TEMPLATE_COMPILATION __device__ size_t get_key_part(size_t key, size_t offset)
 {
   return (key >> offset) & (RADIX_SORT_BITS_VALUES - 1);
 }
 
 // Create the mask of the part.
-__global__ void radix_sort_frequency(
+__inline__  __global__ void radix_sort_frequency(
   const uint32_t *const keys,
   size_t size,
   size_t offset,
@@ -73,7 +76,7 @@ __global__ void radix_sort_frequency(
 
 }
 
-__global__ void radix_sort_global_frequency(
+TEMPLATE_COMPILATION __global__ void radix_sort_global_frequency(
   const size_t *const frequency,
   size_t size,
   size_t *global_frequency)
@@ -87,7 +90,7 @@ __global__ void radix_sort_global_frequency(
 }
 
 template<typename T>
-__global__ void radix_sort_move_all(
+TEMPLATE_COMPILATION __global__ void radix_sort_move_all(
   const uint32_t *const input_keys,
   uint32_t *output_keys,
   const T *const input_values,

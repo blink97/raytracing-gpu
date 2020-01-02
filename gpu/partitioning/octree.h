@@ -31,12 +31,13 @@ struct octree
 
 /**
  * Create an octree from the given scene.
- * The scene will be modified (objects order will be changed).
+ * The scene will be modified (objects order will be changed),
+ * so if an AABB was already constructed,
+ * it need to be recreated after this call.
  * The resulting octree will be stored in the pointer given as parameter.
  */
 void create_octree(
   struct scene *scene,
-  struct AABB *aabb,
   struct octree **octree
 );
 
