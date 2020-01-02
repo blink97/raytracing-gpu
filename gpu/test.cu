@@ -369,8 +369,8 @@ int main(int argc, char *argv[])
 
   //struct scene scene = parser(CUBE);
   //struct scene scene = parser(DARK_NIGHT);
-  //struct scene scene = parser(ISLAND_SMOOTH);
-  struct scene scene = parser(SPHERES);
+  struct scene scene = parser(ISLAND_SMOOTH);
+  //struct scene scene = parser(SPHERES);
 
   display_GPU_memory();
 
