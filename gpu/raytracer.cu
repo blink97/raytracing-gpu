@@ -36,7 +36,7 @@ __device__ static struct color trace(struct scene* scene, struct ray ray, float 
   if (!vector3_is_zero(new_ray.direction))
   {
     struct color object = apply_light(scene, &obj, new_ray);
-    struct ray reflection_ray = ray_bounce(ray, new_ray);
+    struct ray reflection_ray = ray_bounce(&ray, &new_ray);
     struct color reflection = trace(scene, reflection_ray, obj.nr * coef);
     struct color temp = color_mul(&object, coef);
     struct color ret = color_add(&reflection, &temp);
@@ -161,6 +161,10 @@ void render(const scene &scene, char* buffer, int aliasing, std::ptrdiff_t strid
 
   struct scene* cuda_scene = to_cuda(&scene);
   printf("lancement. %i %i %i %i.\n", wi, he, width, height);
+
+  /* SET LIMIT ? */
+  cudaDeviceSetLimit(cudaLimitStackSize, 200 * sizeof(struct ray));
+
   raytrace<<<dimGrid, dimBlock>>>(devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
 
 
