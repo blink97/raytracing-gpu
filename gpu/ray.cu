@@ -13,13 +13,13 @@ __device__ struct ray init_ray(void)
   return ret;
 }
 
-__device__ struct ray ray_bounce(struct ray ray, struct ray normal)
+__device__ struct ray ray_bounce(struct ray* ray, struct ray* normal)
 {
   struct ray ret;
-  ret.origin = normal.origin;
-  ret.direction = vector3_sub(ray.direction,
-                              vector3_scale(normal.direction,
-                                           2 * vector3_dot(normal.direction,
-                                                           ray.direction)));
+  ret.origin = normal->origin;
+  ret.direction = vector3_sub(ray->direction,
+                              vector3_scale(normal->direction,
+                                           2 * vector3_dot(normal->direction,
+                                                           ray->direction)));
   return ret;
 }

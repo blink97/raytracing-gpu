@@ -8,6 +8,6 @@ struct ray {
 };
 
 __device__ struct ray init_ray(void);
-__device__ struct ray ray_bounce(struct ray ray, struct ray normal);
+__device__ struct ray ray_bounce(struct ray* ray, struct ray* normal);
 
 #endif /* !RAY_H */
