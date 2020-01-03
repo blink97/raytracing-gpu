@@ -48,50 +48,63 @@ __host__ __device__ vector3 *get_normal(const struct triangles_layout triangles,
 # endif
 /* End of layout dependent code */
 
+
 /**
  * Rewrite the triangles pointers so that they point to the correct position
  */
 static void rewrite_pointers(const struct scene *scene)
 {
+  constexpr uint32_t objects_block_size = 128;
+
   size_t offset = 0;
-  for (uint32_t i = 0; i < scene->object_count; ++i)
+  for (uint32_t current = 0; current < scene->object_count; current += objects_block_size)
   {
     // Get the object back on the CPU
-    struct object current_object;
+    struct object current_objects[objects_block_size];
+
+    uint32_t current_size = ((scene->object_count <= current + objects_block_size)
+        ? scene->object_count - current
+        : objects_block_size
+    );
 
     cudaMemcpy(
-      &current_object,
-      scene->objects + i,
-      sizeof(struct object),
+      &current_objects,
+      scene->objects + current,
+      sizeof(struct object) * current_size,
       cudaMemcpyDefault
     );
 
+    for (uint32_t i = 0; i < current_size; ++i)
+    {
+
       /* Layout dependent code */
-#  if defined(LAYOUT_FRAGMENTED)
+      # if defined(LAYOUT_FRAGMENTED)
 
-    /* Nothing to do here */
+        /* Nothing to do here */
 
-#  elif defined(LAYOUT_AOS)
+      # elif defined(LAYOUT_AOS)
 
-    current_object.triangles.data = scene->objects_data.vertex_and_normal + offset;
+        current_objects[i].triangles.data = scene->objects_data.vertex_and_normal + offset;
 
-    offset += 6 * current_object.triangle_count;
+        offset += 6 * current_object.triangle_count;
 
-#  else /* LAYOUT_SOA */
+      # else /* LAYOUT_SOA */
 
-    current_object.triangles.vertex = scene->objects_data.vertex + offset;
-    current_object.triangles.normal = scene->objects_data.normal + offset;
+        current_objects[i].triangles.vertex = scene->objects_data.vertex + offset;
+        current_objects[i].triangles.normal = scene->objects_data.normal + offset;
 
-    offset += 3 * current_object.triangle_count;
+        offset += 3 * current_objects[i].triangle_count;
 
-#  endif
-  /* End of layout dependent code */
+      # endif
+      /* End of layout dependent code */
+    }
+
 
     // Replace the object at it's current location
     cudaMemcpy(
-      scene->objects + i,
-      &current_object,
-      sizeof(struct object),
+      scene->objects + current,
+      &current_objects,
+      sizeof(struct object) * current_size,
       cudaMemcpyDefault
     );
   }

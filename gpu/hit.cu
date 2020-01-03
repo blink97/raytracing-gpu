@@ -124,7 +124,7 @@ __device__ float collide_dist(struct scene* scene, struct ray ray)
     {
 //    	make_float3(new_ray.origin.x - ray.origin.x, new_ray.origin.y - ray.origin.y, new_ray.origin.z - ray.origin.z);
 //    	auto res = new_ray.origin - ray.origin;
-    	vector3 res = vector3_sub(ray.origin, ray.origin);
+    	vector3 res = vector3_sub(new_ray.origin, ray.origin);
     	float new_dist = vector3_length(res);
 //    	float new_dist = ~res;
 

@@ -12,13 +12,15 @@
  */
 struct octree
 {
-  // The current center of the octree.
-  // All children are placed around this center.
-  vector3 center;
+  // The box englobing the octree.
+  struct AABB box;
 
   // The objects index in the scene at which this level start.
   size_t start_index;
-  // The objects index in the scene at which this level end.
+  // The objects index in the scene at which this level end, excluded.
+  // Excluding the value allows for simple iteration: while (i < end_index),
+  // and at the same times, handling of nodes only
+  // containing children and no objects.
   size_t end_index;
 
   // All the children of the octree.
@@ -29,19 +31,15 @@ struct octree
 
 /**
  * Create an octree from the given scene.
- * The scene will be modified (objects order will be changed).
+ * The scene will be modified (objects order will be changed),
+ * so if an AABB was already constructed,
+ * it need to be recreated after this call.
  * The resulting octree will be stored in the pointer given as parameter.
  */
 void create_octree(
   struct scene *scene,
-  struct AABB *aabb,
   struct octree **octree
 );
-
-/*
- * All functions exported under this are only present
- * so that they can be benchmarked together.
- */
 
 /*
  * Contains the position of an object into a octree.
@@ -54,6 +52,15 @@ void create_octree(
  */
 typedef uint32_t octree_generation_position;
 
+/*
+ * Get the level associated with the given position
+ */
+__host__ __device__ uint8_t get_level(octree_generation_position position);
+
+/*
+ * Get the position in the octree node at the given level.
+ */
+__host__ __device__ uint8_t get_level_position(octree_generation_position position, uint8_t level);
 
 /*
  * Find the scale of the scene, so that the rest
@@ -84,6 +91,36 @@ __global__ void position_object(
   const struct AABB *const scale,
   octree_generation_position *positions,
   size_t nb_objects
+);
+
+
+/*
+ * Get the number of nodes in the octree that needs to be created
+ * for each position, excluding the ones already created
+ * by other nodes. Positions must be sorted, as it allows
+ * to easily get this number for each position, only having to
+ * look at the previous element in the array to get the difference
+ * in the number of octree nodes.
+ */
+__global__ void nodes_difference_array(
+  const octree_generation_position *const sorted_positions,
+  size_t *nodes_difference,
+  size_t nb_objects
+);
+
+
+/*
+ * Create the full octree.
+ * The number of octree nodes created is the last value of the prefix array.
+ *
+ * WARNING: the resulting_octree array must be zeroed before entering this function !
+ */
+__global__ void create_octree(
+  const octree_generation_position *const sorted_positions,
+  const size_t *const nodes_difference,
+  size_t nb_objects,
+  const struct AABB *const scale,
+  struct octree *resulting_octree
 );
 
 #endif /* !OCTREE_H */
