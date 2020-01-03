@@ -4,6 +4,7 @@
 # include <cuda_runtime.h>
 
 # include "scene.h"
+# include "ray.h"
 
 /*
  * Axis aligned bounding box.
@@ -24,6 +25,11 @@ struct AABB {
  * as the number of objects in the scene, as well
  * as being a GPU memory address.
  */
+void compute_bounding_box(const struct scene *const scene, struct AABB *aabbs);
+
 __global__ void object_compute_bounding_box(const struct scene *const scene, struct AABB *aabbs);
+
+
+__host__ __device__ bool hit_aabb(const struct AABB *const aabb, const struct ray *const ray);
 
 #endif /* !AABB_H */

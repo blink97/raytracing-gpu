@@ -1,5 +1,6 @@
 #ifndef RAY_H
 # define RAY_H
+
 # include "vector3.h"
 
 struct ray {

@@ -62,6 +62,8 @@ target_sources(renderer PRIVATE
   light.cu
   partitioning/aabb.cu
   partitioning/octree.cu
+  partitioning/prefix_sum.cu
+  partitioning/utils.cu
   parse_obj.cpp
   parser.cpp
   printer.cpp
@@ -77,13 +79,12 @@ set_target_properties(renderer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(rt rt.cpp)
 target_compile_features(rt PUBLIC cxx_std_17)
-target_link_libraries(rt PRIVATE PNG::PNG spdlog::spdlog renderer)
-
+target_link_libraries(rt PRIVATE PNG::PNG renderer spdlog::spdlog)
 
 add_executable(bench bench.cu)
 target_compile_features(bench PUBLIC cxx_std_14)
-target_link_libraries(bench PRIVATE spdlog::spdlog benchmark renderer)
+target_link_libraries(bench PRIVATE benchmark renderer spdlog::spdlog)
 
 add_executable(test test.cu)
 target_compile_features(test PUBLIC cxx_std_14)
-target_link_libraries(test PRIVATE spdlog::spdlog renderer)
+target_link_libraries(test PRIVATE renderer spdlog::spdlog)
