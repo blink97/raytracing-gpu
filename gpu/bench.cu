@@ -51,7 +51,7 @@ void BM_aabb_object(benchmark::State& st, const char *filename)
   dim3 numBlocks(ceil(scene.object_count * 1.0 / threadsPerBlock.x));
 
   for (auto _ : st)
-    object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+    compute_bounding_box(cuda_scene, aabbs);
 
   cudaFree(aabbs);
 }
@@ -71,7 +71,7 @@ void BM_find_scene_scale_basic(benchmark::State& st, const char *filename)
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  compute_bounding_box(cuda_scene, aabbs);
 
   // Compute the global scale
   struct AABB *resulting_scale;
@@ -98,7 +98,7 @@ void BM_find_scene_scale_shared(benchmark::State& st, const char *filename)
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  compute_bounding_box(cuda_scene, aabbs);
 
   // Compute the global scale
   struct AABB *resulting_scale;
@@ -125,7 +125,7 @@ void BM_position_object(benchmark::State& st, const char *filename)
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  compute_bounding_box(cuda_scene, aabbs);
 
   // Compute the global scale
   struct AABB *resulting_scale;
@@ -266,7 +266,7 @@ void BM_nodes_difference(benchmark::State& st, const char *filename)
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  compute_bounding_box(cuda_scene, aabbs);
 
   // Compute the global scale
   struct AABB *resulting_scale;
@@ -385,7 +385,7 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  compute_bounding_box(cuda_scene, aabbs);
 
   // Compute the global scale
   struct AABB *resulting_scale;

@@ -56,6 +56,7 @@ target_sources(renderer PRIVATE
   partitioning/aabb.cu
   partitioning/octree.cu
   partitioning/prefix_sum.cu
+  partitioning/utils.cu
   parse_obj.cpp
   parser.cpp
   printer.cpp

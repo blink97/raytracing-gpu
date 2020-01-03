@@ -2,23 +2,7 @@
 
 #include "sort.h"
 #include "prefix_sum.h"
-
-__device__ __forceinline__ float atomicMinFloat(float *addr, float value)
-{
-  float old = ((value >= 0)
-    ? __int_as_float(atomicMin((int *)addr, __float_as_int(value)))
-    : __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value))));
-
-  return old;
-}
-
-__device__ __forceinline__ float atomicMaxFloat(float *addr, float value) {
-  float old = ((value >= 0)
-    ? __int_as_float(atomicMax((int *)addr, __float_as_int(value)))
-    : __uint_as_float(atomicMin((unsigned int *)addr, __float_as_uint(value))));
-
-    return old;
-}
+#include "utils.h"
 
 /*
  * Get the position of a point in one dimension
@@ -379,7 +363,7 @@ void create_octree(
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(scene, aabbs);
+  compute_bounding_box(scene, aabbs);
 
   // Compute the global scale
   struct AABB *resulting_scale;

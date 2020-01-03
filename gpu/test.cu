@@ -5,6 +5,7 @@
 #include "partitioning/octree.h"
 #include "partitioning/prefix_sum.h"
 #include "partitioning/sort.h"
+#include "partitioning/utils.h"
 
 #include <cassert>
 #include <iostream>
@@ -219,7 +220,7 @@ void display_octree_rec(const struct octree *const octree, size_t current_level 
 
 void test_partitioning(const struct scene *cuda_scene)
 {
-  display_cuda_scene(cuda_scene);
+  //display_cuda_scene(cuda_scene);
 
   struct scene CPU_scene;
   cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
@@ -233,7 +234,7 @@ void test_partitioning(const struct scene *cuda_scene)
   // Compute the bounding box
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
-  object_compute_bounding_box<<<numBlocks, threadsPerBlock>>>(cuda_scene, aabbs);
+  compute_bounding_box(cuda_scene, aabbs);
   display_aabbs(aabbs, CPU_scene.object_count);
 
   // Compute the global scale
@@ -376,9 +377,9 @@ int main(int argc, char *argv[])
 
   struct scene *cuda_scene = to_cuda(&scene);
 
-  //test_partitioning(cuda_scene);
+  test_partitioning(cuda_scene);
   //test_prefix_sum();
   //test_sort();
 
-  test_octree_creation(cuda_scene);
+  //test_octree_creation(cuda_scene);
 }
