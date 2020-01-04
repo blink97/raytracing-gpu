@@ -64,7 +64,7 @@ __global__ void downscale(char* higher, char* lower, int width, int height, size
 
 
     for (int h_py = aliasing * py; h_py < m_py; ++h_py) {
-        struct color *local_line = (struct color *) (higher + (ow - h_py - 1) * b_pitch);
+        struct color *local_line = (struct color *) (higher + (oh - h_py - 1) * b_pitch);
         for (int h_px = aliasing * px; h_px < m_px; ++h_px) {
             struct color tmp = local_line[ow - h_px - 1];
             r += (float)tmp.r;

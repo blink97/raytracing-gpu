@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 #  endif
     struct scene scene = parser(argv[1]);
 
-    int aliasing = 5;
+    int aliasing = 3;
 
     // First create end buffer
     int stride = scene.camera.width * sizeof(struct color);
