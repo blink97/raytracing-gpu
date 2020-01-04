@@ -1,7 +1,8 @@
 #include "octree.h"
 
-#include "sort.h"
+#include "aabb.h"
 #include "prefix_sum.h"
+#include "sort.h"
 #include "utils.h"
 
 /*
@@ -11,7 +12,7 @@
  */
 __device__ uint8_t get_point_position(float value)
 {
-  return min((uint16_t)((value) * 256), 255);
+  return max(0, min((int16_t)(value * 256), 255));
 }
 
 /*
@@ -360,6 +361,7 @@ __global__ void create_octree(
 
 void create_octree(
   struct scene *scene,
+  struct AABB **aabb,
   struct octree **octree)
 {
   struct scene CPU_scene;
@@ -369,22 +371,23 @@ void create_octree(
   dim3 numBlocks(ceil(CPU_scene.object_count * 1.0 / threadsPerBlock.x));
 
   // Compute the bounding box
-  struct AABB *aabbs;
-  cudaMalloc(&aabbs, sizeof(struct AABB) * CPU_scene.object_count);
-  compute_bounding_box(scene, aabbs);
+  cudaMalloc(aabb, sizeof(struct AABB) * CPU_scene.object_count);
+  compute_bounding_box(scene, *aabb);
 
   // Compute the global scale
   struct AABB *resulting_scale;
   cudaMalloc(&resulting_scale, sizeof(struct AABB));
-  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
+  find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(*aabb, CPU_scene.object_count, resulting_scale);
+
 
   // Compute the position of the objects
   octree_generation_position *positions;
   cudaMalloc(&positions, sizeof(octree_generation_position) * CPU_scene.object_count);
-  position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, CPU_scene.object_count);
+  position_object<<<numBlocks, threadsPerBlock>>>(*aabb, resulting_scale, positions, CPU_scene.object_count);
 
   // Sort the position of the objects
-  parallel_radix_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+  parallel_radix_sort(positions, CPU_scene.objects, *aabb, CPU_scene.object_count);
+
 
   // Get the number of nodes needed per each objects
   size_t *node_differences;
@@ -402,7 +405,6 @@ void create_octree(
   cudaMemset(*octree, 0, sizeof(struct octree) * nb_nodes);
   create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, *octree);
 
-  cudaFree(aabbs);
   cudaFree(resulting_scale);
   cudaFree(positions);
   cudaFree(node_differences);

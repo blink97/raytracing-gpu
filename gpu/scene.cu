@@ -124,13 +124,12 @@ struct scene empty_scene()
     .camera = {/* Use default init */},
     .triangle_count = 0,
 
-/* Partitioning dependent code */
-# if defined(PARTITIONING_NONE)
-  // No partitioning to do
-# elif defined(PARTITIONING_AABB)
+    /* Partitioning dependent code */
+# if defined(PARTITIONING_AABB) || defined(PARTITIONING_OCTREE)
     .aabbs = nullptr,
-# else /* PARTITIONING_OCTREE */
+#  if defined(PARTITIONING_OCTREE)
     .octree = nullptr,
+#  endif
 # endif
 /* End of Partitioning dependent code */
 
@@ -318,10 +317,8 @@ struct scene *to_cuda(const struct scene *const scene)
   cudaMalloc(&GPU_cuda_scene, sizeof(struct scene));
   cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
 
-    /* Partitioning dependent code */
-# if defined(PARTITIONING_NONE)
-  // No partitioning to do
-# elif defined(PARTITIONING_AABB)
+/* Partitioning dependent code */
+# if defined(PARTITIONING_AABB)
 
   struct AABB *aabbs;
   cudaMalloc(&aabbs, sizeof(struct AABB) * cuda_scene.object_count);
@@ -332,17 +329,23 @@ struct scene *to_cuda(const struct scene *const scene)
   cuda_scene.aabbs = aabbs;
   cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
 
-# else /* PARTITIONING_OCTREE */
+# elif defined(PARTITIONING_OCTREE)
+
+  // Octree creation must be done before the aabb creation,
+  // as the aabb order are rewritten during the creation.
 
   struct octree *octree;
+  struct AABB *aabb;
 
-  create_octree(GPU_cuda_scene, &octree);
+  create_octree(GPU_cuda_scene, &aabb, &octree);
 
   cudaMemcpy(&cuda_scene, GPU_cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
   cuda_scene.octree = octree;
+  cuda_scene.aabbs = aabb;
   cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
 
 # endif
+
   /* End of Partitioning dependent code */
 
   return GPU_cuda_scene;

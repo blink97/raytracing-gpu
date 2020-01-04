@@ -153,20 +153,17 @@ struct scene {
   size_t triangle_count;
 
 /* Partitioning dependent code */
-# if defined(PARTITIONING_NONE)
-
-  // No partitioning to do
-
-# elif defined(PARTITIONING_AABB)
+# if defined(PARTITIONING_AABB) || defined(PARTITIONING_OCTREE)
 
   // All the aabb of the objects, ordered the same ways
   struct AABB *aabbs;
 
-# else /* PARTITIONING_OCTREE */
+#  if defined(PARTITIONING_OCTREE)
 
   // The octree of the scene, can be accessed recursively
   struct octree *octree;
 
+#  endif
 # endif
 /* End of Partitioning dependent code */
 

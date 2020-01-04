@@ -38,6 +38,7 @@ struct octree
  */
 void create_octree(
   struct scene *scene,
+  struct AABB **aabb,
   struct octree **octree
 );
 

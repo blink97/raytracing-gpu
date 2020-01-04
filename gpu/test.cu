@@ -252,7 +252,7 @@ void test_partitioning(const struct scene *cuda_scene)
 
   // Sort the position of the objects
   //single_thread_bubble_sort(positions, CPU_scene.objects, CPU_scene.object_count);
-  parallel_radix_sort(positions, CPU_scene.objects, CPU_scene.object_count);
+  parallel_radix_sort(positions, CPU_scene.objects, aabbs, CPU_scene.object_count);
   display_positions(positions, CPU_scene.objects, CPU_scene.object_count);
 
   // Get the number of nodes needed per each objects
@@ -320,9 +320,11 @@ void test_sort()
   // Is absolutely not used, but is needed for the function
   size_t *GPU_values;
   cudaMalloc(&GPU_values, sizeof(size_t) * size);
+  size_t *GPU_second_values;
+  cudaMalloc(&GPU_second_values, sizeof(size_t) * size);
 
   cudaMemcpy(GPU_keys, array, sizeof(uint32_t) * size, cudaMemcpyDefault);
-  parallel_radix_sort(GPU_keys, GPU_values, size);
+  parallel_radix_sort(GPU_keys, GPU_values, GPU_second_values, size);
 
   // Assert that the values are sorted
   cudaMemcpy(array, GPU_keys, sizeof(uint32_t) * size, cudaMemcpyDefault);
@@ -341,9 +343,19 @@ void test_sort()
 void test_octree_creation(struct scene *cuda_scene)
 {
   struct octree *octree;
-  create_octree(cuda_scene, &octree);
+  struct AABB *aabb;
+  create_octree(cuda_scene, &aabb, &octree);
 
   display_octree_rec(octree);
+
+# if !defined(PARTITIONING_NONE)
+
+  struct scene CPU_scene;
+  cudaMemcpy(&CPU_scene, cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
+  display_aabbs(CPU_scene.aabbs, CPU_scene.object_count);
+
+# endif
 }
 
 
@@ -377,16 +389,16 @@ int main(int argc, char *argv[])
 
   //struct scene scene = parser(CUBE);
   //struct scene scene = parser(DARK_NIGHT);
-  //struct scene scene = parser(ISLAND_SMOOTH);
-  struct scene scene = parser(SPHERES);
+  struct scene scene = parser(ISLAND_SMOOTH);
+  //struct scene scene = parser(SPHERES);
 
   display_GPU_memory();
 
   struct scene *cuda_scene = to_cuda(&scene);
 
-  test_partitioning(cuda_scene);
+  //test_partitioning(cuda_scene);
   //test_prefix_sum();
   //test_sort();
-  //test_octree_creation(cuda_scene);
+  test_octree_creation(cuda_scene);
   //test_aabb_hit();
 }
