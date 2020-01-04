@@ -46,9 +46,48 @@ trace(struct scene *scene, struct ray ray, struct ray *reflection, float *loc_nr
     return init_color(0, 0, 0);
 }
 
+__global__ void downscale(char* higher, char* lower, int width, int height, size_t pitch, size_t b_pitch, int oh, int ow, int aliasing) {
+    // lower buffer position
+    int px = blockDim.x * blockIdx.x + threadIdx.x;
+    int py = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (px >= width || py >= height)
+        return;
+
+    // higher buffer position
+    int m_px = aliasing * px + aliasing;
+    int m_py = aliasing * py + aliasing;
+
+    float r = 0;
+    float g = 0;
+    float b = 0;
+
+
+    for (int h_py = aliasing * py; h_py < m_py; ++h_py) {
+        struct color *local_line = (struct color *) (higher + (ow - h_py - 1) * b_pitch);
+        for (int h_px = aliasing * px; h_px < m_px; ++h_px) {
+            struct color tmp = local_line[ow - h_px - 1];
+            r += (float)tmp.r;
+            g += (float)tmp.g;
+            b += (float)tmp.b;
+        }
+    }
+
+    float ali2 = 255.0f * (float)aliasing * (float)aliasing;
+    r /= ali2;
+    g /= ali2;
+    b /= ali2;
+
+    struct color end_color = init_color(r, g, b);
+
+    struct color *lineptr = (struct color *) (lower + (height - py - 1) * pitch);
+    lineptr[width - px - 1] = end_color;
+}
 
 __global__ void raytrace(char *buff, int width, int height, size_t pitch,
                          struct scene *scene, vector3 *u, vector3 *v, vector3 *C) {
+
+    // Buffer position
     int px = blockDim.x * blockIdx.x + threadIdx.x;
     int py = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -59,6 +98,7 @@ __global__ void raytrace(char *buff, int width, int height, size_t pitch,
 
     vector3 ui = vector3_scale(*u, px - width / 2);
     vector3 vj = vector3_scale(*v, py - height / 2);
+
     vector3 point = vector3_add(vector3_add(*C, ui), vj);
     vector3 direction = vector3_normalize(vector3_sub(scene->camera.position, point));
     struct ray ray;
@@ -134,7 +174,7 @@ void render_loop() {
 
 }
 
-void render(const scene &scene, char *buffer, int aliasing, std::ptrdiff_t stride) {
+void render(const scene &scene, char *buffer, int aliasing, std::ptrdiff_t stride, int pre_h, int pre_w) {
     vector3 u = host_v_norm(scene.camera.u);
     vector3 v = host_v_norm(scene.camera.v);
     vector3 w = host_v_cross(u, v);
@@ -143,8 +183,6 @@ void render(const scene &scene, char *buffer, int aliasing, std::ptrdiff_t strid
 
     int width = scene.camera.width;
     int height = scene.camera.height;
-
-    float aliasing_step = 1.0 / aliasing;
 
     cudaError_t rc = cudaSuccess;
     // Allocate device memory
@@ -182,25 +220,34 @@ void render(const scene &scene, char *buffer, int aliasing, std::ptrdiff_t strid
     struct scene *cuda_scene = to_cuda(&scene);
     printf("lancement. %i %i %i %i.\n", wi, he, width, height);
 
-    /* SET LIMIT ? */
-    cudaDeviceSetLimit(cudaLimitStackSize, 200 * sizeof(struct ray));
 
-    raytrace << < dimGrid, dimBlock >> > (devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
+    raytrace <<< dimGrid, dimBlock >>> (devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
+    // devBuffer now contains the upscaled image
 
+    char *lowerscale;
+    size_t second_picth;
+    cudaMallocPitch(&lowerscale, &second_picth, pre_w * sizeof(struct color) , pre_h);
+    // Dont care for now, for out of range
+    downscale<<<dimGrid, dimBlock>>>(devBuffer, lowerscale, pre_w, pre_h, second_picth, pitch, height, width, aliasing);
 
-    cudaDeviceSynchronize();
+//    cudaDeviceSynchronize();
     printf("done..\n");
 
     if (cudaPeekAtLastError())
         abortError("Computation Error");
 
-    // Copy back to main memory
-    rc = cudaMemcpy2D(buffer, stride, devBuffer, pitch, width * sizeof(struct color), height, cudaMemcpyDeviceToHost);
+    // Free
+    rc = cudaFree(devBuffer);
+    if (rc)
+        abortError("Unable to free memory");
+
+        // Copy back to main memory
+    rc = cudaMemcpy2D(buffer, stride, lowerscale, second_picth, pre_w * sizeof(struct color), pre_h, cudaMemcpyDeviceToHost);
     if (rc)
         abortError("Unable to copy buffer back to memory");
 
     // Free
-    rc = cudaFree(devBuffer);
+    rc = cudaFree(lowerscale);
     if (rc)
         abortError("Unable to free memory");
 }

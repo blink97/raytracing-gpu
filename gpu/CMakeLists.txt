@@ -6,6 +6,9 @@ project (GPGPU CUDA CXX)
 #add_compile_definitions(LAYOUT_AOS)
 add_compile_definitions(LAYOUT_SOA)
 
+# Enable anti aliasing
+add_compile_definitions(SSAA)
+
 
 
 include(FetchContent)
