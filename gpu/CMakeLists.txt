@@ -6,7 +6,10 @@ project (GPGPU CUDA CXX)
 #add_compile_definitions(LAYOUT_AOS)
 add_compile_definitions(LAYOUT_SOA)
 
-
+# Enable only one of them to set the type of partitioning used.
+#add_compile_definitions(PARTITIONING_NONE)
+add_compile_definitions(PARTITIONING_AABB)
+#add_compile_definitions(PARTITIONING_OCTREE)
 
 include(FetchContent)
 

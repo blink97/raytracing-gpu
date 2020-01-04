@@ -2,6 +2,8 @@
 #include "hit.h"
 #include "vector3.h"
 
+#include "partitioning/aabb.h"
+#include "partitioning/octree.h"
 
 __device__ static int ray_intersect(struct ray ray, vector3 *input_vertex, vector3 *input_normal,
                          vector3 *out, vector3 *normal)
@@ -75,7 +77,11 @@ __device__ static struct ray triangle_collide(struct object object, struct ray r
   return ret;
 }
 
-__device__ struct ray collide(struct scene* scene, struct ray ray, struct object* obj)
+
+/* Partitioning dependent code */
+# if defined(PARTITIONING_NONE)
+
+__device__ struct ray collide(const struct scene* scene, struct ray ray, struct object* obj)
 {
   float distance = 0;
   struct ray ret = init_ray();
@@ -96,6 +102,82 @@ __device__ struct ray collide(struct scene* scene, struct ray ray, struct object
   return ret;
 }
 
+# elif defined(PARTITIONING_AABB)
+
+__device__ struct ray collide(const struct scene* scene, struct ray ray, struct object* obj)
+{
+  float distance = 0;
+  struct ray ret = init_ray();
+  for (size_t i = 0; i < scene->object_count; i++)
+  {
+    // Try the aabb first, to prevent checking for collision with all triangles
+    // if there is no intersections.
+    if (hit_aabb(&scene->aabbs[i], &ray))
+    {
+      struct ray new_ray = triangle_collide(scene->objects[i], ray);
+      if (!vector3_is_zero(new_ray.direction))
+      {
+        float new_dist = vector3_length(vector3_sub(new_ray.origin, ray.origin));
+        if (new_dist > 0.01 && (new_dist < distance || distance == 0))
+        {
+          distance = new_dist;
+          ret = new_ray;
+          *obj = scene->objects[i];
+        }
+      }
+    }
+  }
+  return ret;
+}
+
+# else /* PARTITIONING_OCTREE */
+
+__device__ struct ray collide(const struct scene* scene, struct ray ray, struct object* obj)
+{
+  float distance = 0;
+  struct ray ret = init_ray();
+
+  struct octree *octree_stack[8/* Children per octree */ * 8 /* Depth of the octree */];
+  octree_stack[0] = scene->octree;
+  size_t octree_stack_size = 1;
+
+  while (octree_stack_size > 0)
+  {
+    struct octree *current = octree_stack[--octree_stack_size];
+    if (hit_aabb(&current->box, &ray))
+    {// It it's this octree, perform an intersection test on all it's objects, and add the children
+
+      // Perform the intersection check on it's objects
+      for (size_t i = current->start_index; i < current->end_index; ++i)
+      {
+        struct ray new_ray = triangle_collide(scene->objects[i], ray);
+        if (!vector3_is_zero(new_ray.direction))
+        {
+          float new_dist = vector3_length(vector3_sub(new_ray.origin, ray.origin));
+          if (new_dist > 0.01 && (new_dist < distance || distance == 0))
+          {
+            distance = new_dist;
+            ret = new_ray;
+            *obj = scene->objects[i];
+          }
+        }
+      }
+
+      // Add all of it's children
+      for (size_t child = 0; child < 8; ++child)
+        if (current->children[child] != nullptr)
+          octree_stack[++octree_stack_size] = current->children[child];
+    }
+  }
+
+  return ret;
+}
+
+# endif
+/* End of Partitioning dependent code */
+
+
+
 __device__ float3 operator+(const float3 &a, const float3 &b) {
 
   return make_float3(a.x+b.x, a.y+b.y, a.z+b.z);
@@ -114,25 +196,16 @@ __device__ float operator~(const float3 &a) {
 }
 
 
-__device__ float collide_dist(struct scene* scene, struct ray ray)
+__device__ float collide_dist(const struct scene* scene, struct ray ray)
 {
-  float distance = 0;
-  for (size_t i = 0; i < scene->object_count; i++)
-  {
-    struct ray new_ray = triangle_collide(scene->objects[i], ray);
-    if (!vector3_is_zero(new_ray.direction))
-    {
-//    	make_float3(new_ray.origin.x - ray.origin.x, new_ray.origin.y - ray.origin.y, new_ray.origin.z - ray.origin.z);
-//    	auto res = new_ray.origin - ray.origin;
-    	vector3 res = vector3_sub(new_ray.origin, ray.origin);
-    	float new_dist = vector3_length(res);
-//    	float new_dist = ~res;
+  struct object object;
+  struct ray new_ray = collide(scene, ray, &object);
 
-      if (new_dist > 0.01 && (new_dist < distance || distance == 0))
-      {
-        distance = new_dist;
-      }
-    }
+  if (vector3_is_zero(new_ray.direction))
+    return 0;
+  else
+  {
+    vector3 res = vector3_sub(new_ray.origin, ray.origin);
+    return vector3_length(res);
   }
-  return distance;
 }

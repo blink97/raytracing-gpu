@@ -53,7 +53,14 @@ __global__ void find_scene_scale_basic(
   struct AABB *resulting_scale)
 {
   size_t index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= nb_objects) return; // Nothing to do here
+  if (index >= nb_objects)
+    return; // Nothing to do here
+
+  if (index == 0)
+    *resulting_scale = aabbs[index];
+
+  __syncthreads();
+
 
   atomicMinFloat(&resulting_scale->min.x, aabbs[index].min.x);
   atomicMinFloat(&resulting_scale->min.y, aabbs[index].min.y);
@@ -76,9 +83,10 @@ __global__ void find_scene_scale_shared(
 
   // Set the default value of the scale
   if (threadIdx.x == 0)
-  {
     shared_scale = aabbs[index];
-  }
+  if (index == 0)
+    *resulting_scale = aabbs[index];
+
   __syncthreads();
 
   atomicMinFloat(&shared_scale.min.x, aabbs[index].min.x);
@@ -107,9 +115,9 @@ __global__ void find_scene_scale_shared(
 
 __device__ void scale_position(vector3 *position, const struct AABB *const scale)
 {
-  position->x = (position->x + scale->min.x) / (scale->max.x - scale->min.x);
-  position->y = (position->y + scale->min.y) / (scale->max.y - scale->min.y);
-  position->z = (position->z + scale->min.z) / (scale->max.z - scale->min.z);
+  position->x = (position->x - scale->min.x) / (scale->max.x - scale->min.x);
+  position->y = (position->y - scale->min.y) / (scale->max.y - scale->min.y);
+  position->z = (position->z - scale->min.z) / (scale->max.z - scale->min.z);
 }
 
 // Get the level associated with the object
@@ -224,13 +232,13 @@ __device__ void get_aabb_box(
   const struct AABB *const scale, struct AABB *octree_aabb)
 {
   float aabb_size = pow(0.5, level);
-  octree_aabb->min.x = ((float)(x / 256.0)) * (scale->max.x - scale->min.x) - scale->min.x;
-  octree_aabb->min.y = ((float)(y / 256.0)) * (scale->max.y - scale->min.y) - scale->min.y;
-  octree_aabb->min.z = ((float)(z / 256.0)) * (scale->max.z - scale->min.z) - scale->min.z;
+  octree_aabb->min.x = ((float)(x / 256.0)) * (scale->max.x - scale->min.x) + scale->min.x;
+  octree_aabb->min.y = ((float)(y / 256.0)) * (scale->max.y - scale->min.y) + scale->min.y;
+  octree_aabb->min.z = ((float)(z / 256.0)) * (scale->max.z - scale->min.z) + scale->min.z;
 
-  octree_aabb->max.x = ((float)(x / 256.0) + aabb_size) * (scale->max.x - scale->min.x) - scale->min.x;
-  octree_aabb->max.y = ((float)(y / 256.0) + aabb_size) * (scale->max.y - scale->min.y) - scale->min.y;
-  octree_aabb->max.z = ((float)(z / 256.0) + aabb_size) * (scale->max.z - scale->min.z) - scale->min.z;
+  octree_aabb->max.x = ((float)(x / 256.0) + aabb_size) * (scale->max.x - scale->min.x) + scale->min.x;
+  octree_aabb->max.y = ((float)(y / 256.0) + aabb_size) * (scale->max.y - scale->min.y) + scale->min.y;
+  octree_aabb->max.z = ((float)(z / 256.0) + aabb_size) * (scale->max.z - scale->min.z) + scale->min.z;
 }
 
 __global__ void create_octree(

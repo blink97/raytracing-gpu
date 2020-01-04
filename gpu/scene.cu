@@ -2,6 +2,8 @@
 
 # include <cstdlib>
 
+#include "partitioning/aabb.h"
+#include "partitioning/octree.h"
 
 /* Layout dependent code */
 # if defined(LAYOUT_FRAGMENTED)
@@ -121,6 +123,17 @@ struct scene empty_scene()
     .light_count = 0,
     .camera = {/* Use default init */},
     .triangle_count = 0,
+
+/* Partitioning dependent code */
+# if defined(PARTITIONING_NONE)
+  // No partitioning to do
+# elif defined(PARTITIONING_AABB)
+    .aabbs = nullptr,
+# else /* PARTITIONING_OCTREE */
+    .octree = nullptr,
+# endif
+/* End of Partitioning dependent code */
+
   };
 
   return scene;
@@ -304,6 +317,33 @@ struct scene *to_cuda(const struct scene *const scene)
   struct scene *GPU_cuda_scene;
   cudaMalloc(&GPU_cuda_scene, sizeof(struct scene));
   cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
+    /* Partitioning dependent code */
+# if defined(PARTITIONING_NONE)
+  // No partitioning to do
+# elif defined(PARTITIONING_AABB)
+
+  struct AABB *aabbs;
+  cudaMalloc(&aabbs, sizeof(struct AABB) * cuda_scene.object_count);
+
+  compute_bounding_box(GPU_cuda_scene, aabbs);
+
+  cudaMemcpy(&cuda_scene, GPU_cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+  cuda_scene.aabbs = aabbs;
+  cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
+# else /* PARTITIONING_OCTREE */
+
+  struct octree *octree;
+
+  create_octree(GPU_cuda_scene, &octree);
+
+  cudaMemcpy(&cuda_scene, GPU_cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+  cuda_scene.octree = octree;
+  cudaMemcpy(GPU_cuda_scene, &cuda_scene, sizeof(struct scene), cudaMemcpyDefault);
+
+# endif
+  /* End of Partitioning dependent code */
 
   return GPU_cuda_scene;
 }

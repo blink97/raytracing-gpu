@@ -1,8 +1,16 @@
 #include "utils.h"
 
+#include <cstdint>
+
+__device__ bool is_positive(float value)
+{
+  return ((__float_as_int(value) & 0x80000000) == 0);
+}
+
 __device__ float atomicMinFloat(float *addr, float value)
 {
-  float old = ((value >= 0)
+
+  float old = (is_positive(value)
     ? __int_as_float(atomicMin((int *)addr, __float_as_int(value)))
     : __uint_as_float(atomicMax((unsigned int *)addr, __float_as_uint(value))));
 
@@ -10,7 +18,7 @@ __device__ float atomicMinFloat(float *addr, float value)
 }
 
 __device__ float atomicMaxFloat(float *addr, float value) {
-  float old = ((value >= 0)
+  float old = (is_positive(value)
     ? __int_as_float(atomicMax((int *)addr, __float_as_int(value)))
     : __uint_as_float(atomicMin((unsigned int *)addr, __float_as_uint(value))));
 

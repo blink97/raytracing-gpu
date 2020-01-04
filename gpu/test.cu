@@ -240,6 +240,7 @@ void test_partitioning(const struct scene *cuda_scene)
   // Compute the global scale
   struct AABB *resulting_scale;
   cudaMalloc(&resulting_scale, sizeof(struct AABB));
+  //find_scene_scale_basic<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
   find_scene_scale_shared<<<numBlocks, threadsPerBlock>>>(aabbs, CPU_scene.object_count, resulting_scale);
   display_aabbs(resulting_scale, 1);
 
@@ -276,16 +277,6 @@ void test_partitioning(const struct scene *cuda_scene)
   create_octree<<<numBlocks, threadsPerBlock>>>(positions, node_differences, CPU_scene.object_count, resulting_scale, octree);
   display_octree_iter(octree, positions, nb_nodes);
   display_octree_rec(octree);
-
-
-  struct AABB scale;
-  cudaMemcpy(&scale, resulting_scale, sizeof(struct AABB), cudaMemcpyDefault);
-  struct ray ray {
-    .origin = { .x = 0.0, .y = 0.0, .z = 0.0 },
-    .direction = { .x = 0.0, .y = 0.0, .z = 1.0 }
-  };
-  // Test ray intersection.
-  std::cout << "ray it aabb: " << hit_aabb(&scale, &ray) << std::endl;
 
   cudaFree(octree);
   cudaFree(aabbs);
@@ -355,6 +346,22 @@ void test_octree_creation(struct scene *cuda_scene)
   display_octree_rec(octree);
 }
 
+
+void test_aabb_hit()
+{
+  struct AABB scale = {
+    .min = { .x = 0, .y = 0, .z = 0 },
+    .max = { .x = 1, .y = 1, .z = 1 },
+  };
+
+  struct ray ray {
+    .origin = { .x = 0.0, .y = 0.0, .z = 0.0 },
+    .direction = { .x = 0.0, .y = 0.0, .z = 1.0 }
+  };
+  // Test ray intersection.
+  std::cout << "ray it aabb: " << hit_aabb(&scale, &ray) << std::endl;
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -368,9 +375,9 @@ int main(int argc, char *argv[])
 
   display_GPU_memory();
 
-  //struct scene scene = parser(CUBE);
+  struct scene scene = parser(CUBE);
   //struct scene scene = parser(DARK_NIGHT);
-  struct scene scene = parser(ISLAND_SMOOTH);
+  //struct scene scene = parser(ISLAND_SMOOTH);
   //struct scene scene = parser(SPHERES);
 
   display_GPU_memory();
@@ -380,6 +387,6 @@ int main(int argc, char *argv[])
   test_partitioning(cuda_scene);
   //test_prefix_sum();
   //test_sort();
-
   //test_octree_creation(cuda_scene);
+  //test_aabb_hit();
 }

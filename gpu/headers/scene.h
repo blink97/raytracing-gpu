@@ -133,6 +133,10 @@ struct object {
   float d;// Unused
 };
 
+
+struct AABB;
+struct octree;
+
 struct scene {
   /*
    * Fields of this structure must not be directly
@@ -147,6 +151,25 @@ struct scene {
   // Have the global triangle count pre-computed to prevents
   // recomputing it each times.
   size_t triangle_count;
+
+/* Partitioning dependent code */
+# if defined(PARTITIONING_NONE)
+
+  // No partitioning to do
+
+# elif defined(PARTITIONING_AABB)
+
+  // All the aabb of the objects, ordered the same ways
+  struct AABB *aabbs;
+
+# else /* PARTITIONING_OCTREE */
+
+  // The octree of the scene, can be accessed recursively
+  struct octree *octree;
+
+# endif
+/* End of Partitioning dependent code */
+
 };
 
 #endif /* !SCENE_H */

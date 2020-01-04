@@ -5,6 +5,8 @@
 #include "parser.h"
 #include "printer.h"
 #include "colors.h"
+#include "partitioning/octree.h"
+#include "partitioning/aabb.h"
 
 #include <iostream>
 #include <memory>
@@ -68,7 +70,7 @@ int main(int argc, char *argv[])
   struct scene scene = parser(argv[1]);
 
   // struct color output[(scene.camera.width + 1) * (scene.camera.height + 1)];
-  
+
   // Create buffer
   int stride = scene.camera.width * sizeof(struct color);
   auto buffer = std::make_unique<std::byte[]>(scene.camera.height * stride);
