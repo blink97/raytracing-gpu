@@ -88,6 +88,7 @@ __global__ void raytrace(char *buff, int width, int height, size_t pitch,
                          struct scene *scene, vector3 *u, vector3 *v, vector3 *C) {
 
     __shared__ struct object objects[12];
+    __shared__ struct scene s_scene[1];
 
     // Buffer position
     int px = blockDim.x * blockIdx.x + threadIdx.x;
@@ -98,6 +99,9 @@ __global__ void raytrace(char *buff, int width, int height, size_t pitch,
 
     for (int t = 0; t < scene->object_count; t++)
       objects[t] = scene->objects[t];
+
+    s_scene[0] = scene[0];
+
     __syncthreads();
 
     uint32_t *lineptr = (uint32_t *) (buff + (height - py - 1) * pitch);
@@ -120,7 +124,7 @@ __global__ void raytrace(char *buff, int width, int height, size_t pitch,
     struct color color = init_color(0,0,0);
     struct color tmp_color;
     do {
-        tmp_color = trace(scene, objects, ray, &ray, &r_rn);
+        tmp_color = trace(&s_scene[0], objects, ray, &ray, &r_rn);
         tmp_color = color_mul(&tmp_color, nr_);
         color = color_add(&color, &tmp_color);
         nr_ *= r_rn;
