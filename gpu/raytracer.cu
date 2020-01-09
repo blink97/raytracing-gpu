@@ -30,11 +30,11 @@ void _abortError(const char *msg, const char *fname, int line) {
 
 
 __device__ static struct color
-trace(struct scene *scene, struct ray ray, struct ray *reflection, float *loc_nr) {
+trace(struct scene *scene, struct object *objects, struct ray ray, struct ray *reflection, float *loc_nr) {
     struct object obj;
-    struct ray new_ray = collide(scene, ray, &obj);
+    struct ray new_ray = collide(scene, objects, ray, &obj);
     if (!vector3_is_zero(new_ray.direction)) {
-        struct color object = apply_light(scene, &obj, new_ray);
+        struct color object = apply_light(scene, objects, &obj, new_ray);
         if (obj.nr > 0) {
             struct ray reflection_ray = ray_bounce(&ray, &new_ray);
             *reflection = reflection_ray;
@@ -87,12 +87,18 @@ __global__ void downscale(char* higher, char* lower, int width, int height, size
 __global__ void raytrace(char *buff, int width, int height, size_t pitch,
                          struct scene *scene, vector3 *u, vector3 *v, vector3 *C) {
 
+    __shared__ struct object objects[12];
+
     // Buffer position
     int px = blockDim.x * blockIdx.x + threadIdx.x;
     int py = blockDim.y * blockIdx.y + threadIdx.y;
 
     if (px >= width || py >= height)
         return;
+
+    for (int t = 0; t < scene->object_count; t++)
+      objects[t] = scene->objects[t];
+    __syncthreads();
 
     uint32_t *lineptr = (uint32_t *) (buff + (height - py - 1) * pitch);
 
@@ -114,7 +120,7 @@ __global__ void raytrace(char *buff, int width, int height, size_t pitch,
     struct color color = init_color(0,0,0);
     struct color tmp_color;
     do {
-        tmp_color = trace(scene, ray, &ray, &r_rn);
+        tmp_color = trace(scene, objects, ray, &ray, &r_rn);
         tmp_color = color_mul(&tmp_color, nr_);
         color = color_add(&color, &tmp_color);
         nr_ *= r_rn;
@@ -219,9 +225,9 @@ void render(const scene &scene, char *buffer, int aliasing, std::ptrdiff_t strid
 
     struct scene *cuda_scene = to_cuda(&scene);
     printf("lancement. %i %i %i %i.\n", wi, he, width, height);
+    printf("nb obj, %d\n", scene.object_count);
 
-
-    raytrace <<< dimGrid, dimBlock >>> (devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
+    raytrace <<< dimGrid, dimBlock>>> (devBuffer, width, height, pitch, cuda_scene, cuda_u, cuda_v, cuda_C);
     // devBuffer now contains the upscaled image
 
     char *lowerscale;

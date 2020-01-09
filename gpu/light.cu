@@ -26,9 +26,9 @@ __device__ static void apply_specular(struct color *color, struct ray incident,
   *color = color_add(color, &kcolor);
 }
 
-__device__ static int has_direct_hit(struct scene* scene, struct ray light_ray)
+__device__ static int has_direct_hit(struct scene* scene, struct object* objects, struct ray light_ray)
 {
-  float fdist = collide_dist(scene, light_ray);
+  float fdist = collide_dist(scene, objects, light_ray);
   if (fdist < 1)
   if (fdist == 0)
     return 0;
@@ -47,7 +47,7 @@ __device__ static int has_direct_hit(struct scene* scene, struct ray light_ray)
 //}
 
 
-__device__ struct color apply_light(struct scene* scene, struct object* object,
+__device__ struct color apply_light(struct scene* scene, struct object* objects, struct object* object,
                          struct ray point)
 {
   struct color color = init_color(0, 0, 0);
@@ -71,7 +71,7 @@ __device__ struct color apply_light(struct scene* scene, struct object* object,
           light_ray.origin = point.origin;
           light_ray.direction = vector3_scale(light.v, -1);
 
-          if (!has_direct_hit(scene, light_ray))
+          if (!has_direct_hit(scene, objects, light_ray))
           {
             vector3 L = vector3_scale(light.v, -1);
             vector3 N = point.direction;
@@ -103,7 +103,7 @@ __device__ struct color apply_light(struct scene* scene, struct object* object,
           light_ray.origin = point.origin;
           light_ray.direction = vector3_sub(light.v, point.origin);
           float dist = vector3_length(vector3_sub(light.v, point.origin));
-          if (!has_direct_hit(scene, light_ray))
+          if (!has_direct_hit(scene, objects, light_ray))
           {
         	struct color l_color = init_color(light.r, light.g, light.b);
         	struct color obj_color = init_color(object->kd.x, object->kd.y, object->kd.z);

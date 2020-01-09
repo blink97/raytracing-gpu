@@ -4,6 +4,6 @@
 # include "scene.h"
 # include "ray.h"
 
-__device__ struct color apply_light(struct scene*, struct object*, struct ray);
+__device__ struct color apply_light(struct scene*, struct object*, struct object*, struct ray);
 
 #endif /* !LIGHT_H */

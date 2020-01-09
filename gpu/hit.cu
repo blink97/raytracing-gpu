@@ -75,13 +75,13 @@ __device__ static struct ray triangle_collide(struct object object, struct ray r
   return ret;
 }
 
-__device__ struct ray collide(struct scene* scene, struct ray ray, struct object* obj)
+__device__ struct ray collide(struct scene* scene, struct object *objects, struct ray ray, struct object* obj)
 {
   float distance = 0;
   struct ray ret = init_ray();
   for (size_t i = 0; i < scene->object_count; i++)
   {
-    struct ray new_ray = triangle_collide(scene->objects[i], ray);
+    struct ray new_ray = triangle_collide(objects[i], ray);
     if (!vector3_is_zero(new_ray.direction))
     {
       float new_dist = vector3_length(vector3_sub(new_ray.origin, ray.origin));
@@ -89,7 +89,7 @@ __device__ struct ray collide(struct scene* scene, struct ray ray, struct object
       {
         distance = new_dist;
         ret = new_ray;
-        *obj = scene->objects[i];
+        *obj = objects[i];
       }
     }
   }
@@ -114,12 +114,12 @@ __device__ float operator~(const float3 &a) {
 }
 
 
-__device__ float collide_dist(struct scene* scene, struct ray ray)
+__device__ float collide_dist(struct scene* scene, struct object* objects, struct ray ray)
 {
   float distance = 0;
   for (size_t i = 0; i < scene->object_count; i++)
   {
-    struct ray new_ray = triangle_collide(scene->objects[i], ray);
+    struct ray new_ray = triangle_collide(objects[i], ray);
     if (!vector3_is_zero(new_ray.direction))
     {
 //    	make_float3(new_ray.origin.x - ray.origin.x, new_ray.origin.y - ray.origin.y, new_ray.origin.z - ray.origin.z);
