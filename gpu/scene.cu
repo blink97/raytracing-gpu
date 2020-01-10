@@ -88,7 +88,7 @@ static void rewrite_pointers(const struct scene *scene)
 
         current_objects[i].triangles.data = scene->objects_data.vertex_and_normal + offset;
 
-        offset += 6 * current_object.triangle_count;
+        offset += 6 * current_objects[i].triangle_count;
 
       # else /* LAYOUT_SOA */
 
