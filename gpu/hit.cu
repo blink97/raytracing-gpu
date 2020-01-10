@@ -87,7 +87,7 @@ __device__ struct ray collide(const struct scene* scene, struct ray ray, struct 
   struct ray ret = init_ray();
   for (size_t i = 0; i < scene->object_count; i++)
   {
-    #if defined(PARTITIONING_AABB
+    #if defined(PARTITIONING_AABB)
     // Try the aabb first, to prevent checking for collision with all triangles
     // if there is no intersections.
     if (!hit_aabb(&scene->aabbs[i], &ray))
