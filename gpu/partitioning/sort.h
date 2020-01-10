@@ -11,15 +11,15 @@
  * The keys must also be sorted at the end of the function.
  */
 
-template<typename T>
-__device__ __host__ void bubble_sort(uint32_t *keys, T *values, size_t size);
+template<typename O, typename A>
+__device__ __host__ void bubble_sort(uint32_t *keys, O *values, A *second_values, size_t size);
 
-template<typename T>
-void single_thread_bubble_sort(uint32_t *keys, T *values, size_t size);
+template<typename O, typename A>
+void single_thread_bubble_sort(uint32_t *keys, O *values, A *second_values, size_t size);
 
 
-template<typename T>
-void parallel_radix_sort(uint32_t *keys, T *values, size_t size);
+template<typename O, typename A>
+void parallel_radix_sort(uint32_t *keys, O *values, A *second_values, size_t size);
 
 #include "sort.tuh"
 

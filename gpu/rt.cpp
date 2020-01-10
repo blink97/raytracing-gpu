@@ -5,6 +5,8 @@
 #include "parser.h"
 #include "printer.h"
 #include "colors.h"
+#include "partitioning/octree.h"
+#include "partitioning/aabb.h"
 
 #include <iostream>
 #include <memory>

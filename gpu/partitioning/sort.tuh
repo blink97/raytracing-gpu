@@ -5,8 +5,8 @@
 // inline keyword avoids multiple definition errors, but produces warnings.
 #define TEMPLATE_COMPILATION __inline__
 
-template<typename T>
-__device__ __host__ void bubble_sort(uint32_t *keys, T *values, size_t size)
+template<typename O, typename A>
+__device__ __host__ void bubble_sort(uint32_t *keys, O *values, A *second_values, size_t size)
 {
   // Bubble sort the way out of the array.
   for (size_t i = size - 1; i > 0; --i)
@@ -15,13 +15,16 @@ __device__ __host__ void bubble_sort(uint32_t *keys, T *values, size_t size)
     {
       if (keys[j + 1] < keys[j])
       {
-        T tmp_value = values[j];
+        O tmp_value = values[j];
+        A tmp_second_value = second_values[j];
         uint32_t tmp_key = keys[j];
 
         values[j] = values[j + 1];
+        second_values[j] = second_values[j + 1];
         keys[j] = keys[j + 1];
 
         values[j + 1] = tmp_value;
+        second_values[j + 1] = tmp_second_value;
         keys[j + 1] = tmp_key;
       }
     }
@@ -29,22 +32,26 @@ __device__ __host__ void bubble_sort(uint32_t *keys, T *values, size_t size)
 }
 
 
-template<typename T>
-void single_thread_bubble_sort(uint32_t *keys, T *values, size_t size)
+template<typename O, typename A>
+void single_thread_bubble_sort(uint32_t *keys, O *values, A *second_values, size_t size)
 {
   uint32_t *cpu_keys = new uint32_t[size];
-  T *cpu_values = new T[size];
+  O *cpu_values = new O[size];
+  A *cpu_second_values = new A[size];
 
   cudaMemcpy(cpu_keys, keys, sizeof(uint32_t) * size, cudaMemcpyDefault);
-  cudaMemcpy(cpu_values, values, sizeof(T) * size, cudaMemcpyDefault);
+  cudaMemcpy(cpu_values, values, sizeof(O) * size, cudaMemcpyDefault);
+  cudaMemcpy(cpu_second_values, second_values, sizeof(A) * size, cudaMemcpyDefault);
 
-  bubble_sort(cpu_keys, cpu_values, size);
+  bubble_sort(cpu_keys, cpu_values, cpu_second_values, size);
 
   cudaMemcpy(keys, cpu_keys, sizeof(uint32_t) * size, cudaMemcpyDefault);
-  cudaMemcpy(values, cpu_values, sizeof(T) * size, cudaMemcpyDefault);
+  cudaMemcpy(values, cpu_values, sizeof(O) * size, cudaMemcpyDefault);
+  cudaMemcpy(second_values, cpu_second_values, sizeof(A) * size, cudaMemcpyDefault);
 
   delete[] cpu_keys;
   delete[] cpu_values;
+  delete[] cpu_second_values;
 }
 
 // How many bits are done per iteration
@@ -89,12 +96,14 @@ TEMPLATE_COMPILATION __global__ void radix_sort_global_frequency(
   global_frequency[index] = frequency[(index + 1) * size - 1];
 }
 
-template<typename T>
+template<typename O, typename A>
 TEMPLATE_COMPILATION __global__ void radix_sort_move_all(
   const uint32_t *const input_keys,
   uint32_t *output_keys,
-  const T *const input_values,
-  T *output_values,
+  const O *const input_values,
+  O *output_values,
+  const A *const input_second_values,
+  A *output_second_values,
   size_t size,
   size_t offset,
   const size_t *const frequency,
@@ -105,7 +114,8 @@ TEMPLATE_COMPILATION __global__ void radix_sort_move_all(
 
   // Save all key and value as the array will be completly rewritten
   uint32_t current_key = input_keys[index];
-  T current_value = input_values[index];
+  O current_value = input_values[index];
+  A current_second_value = input_second_values[index];
 
 
   // Find where to store the new key and value
@@ -121,10 +131,11 @@ TEMPLATE_COMPILATION __global__ void radix_sort_move_all(
   // Store the keys and the values to their new position
   output_keys[new_index] = current_key;
   output_values[new_index] = current_value;
+  output_second_values[new_index] = current_second_value;
 }
 
-template<typename T>
-void parallel_radix_sort(uint32_t *keys, T *values, size_t size)
+template<typename O, typename A>
+void parallel_radix_sort(uint32_t *keys, O *values, A *second_values, size_t size)
 {
   size_t nb_blocks = ceil((float)size / (float)RADIX_SORT_BLOCK_SIZE);
 
@@ -134,10 +145,12 @@ void parallel_radix_sort(uint32_t *keys, T *values, size_t size)
   // one is read and the other is written to.
   uint8_t current_buffer = 0;
   uint32_t *double_keys[2] = { keys, nullptr };
-  T *double_values[2] = { values, nullptr };
+  O *double_values[2] = { values, nullptr };
+  A *double_second_values[2] = { second_values, nullptr };
 
   cudaMalloc(&double_keys[1], sizeof(uint32_t) * size);
-  cudaMalloc(&double_values[1], sizeof(T) * size);
+  cudaMalloc(&double_values[1], sizeof(O) * size);
+  cudaMalloc(&double_second_values[1], sizeof(O) * size);
 
 
   // Allocate a buffer of all prefix sum
@@ -186,6 +199,7 @@ void parallel_radix_sort(uint32_t *keys, T *values, size_t size)
     radix_sort_move_all<<<nb_blocks, RADIX_SORT_BLOCK_SIZE>>>(
       double_keys[current_buffer], double_keys[(current_buffer + 1) % 2],
       double_values[current_buffer], double_values[(current_buffer + 1) % 2],
+      double_second_values[current_buffer], double_second_values[(current_buffer + 1) % 2],
       size, offset, frequency, global_frequency
     );
   }
@@ -194,11 +208,13 @@ void parallel_radix_sort(uint32_t *keys, T *values, size_t size)
   {
     // Move back the keys and values to the current buffer
     cudaMemcpy(keys, double_keys[1], sizeof(uint32_t) * size, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(values, double_values[1], sizeof(T) * size, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(values, double_values[1], sizeof(O) * size, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(second_values, double_second_values[1], sizeof(A) * size, cudaMemcpyDeviceToDevice);
   }
 
   cudaFree(frequency);
   cudaFree(global_frequency);
   cudaFree(double_keys[1]);
   cudaFree(double_values[1]);
+  cudaFree(double_second_values[1]);
 }

@@ -153,19 +153,21 @@ void BM_single_thread_bubble_sort(benchmark::State& st)
   uint32_t *array = new uint32_t[size];
   uint32_t *keys = new uint32_t[size];
   uint32_t *values = new uint32_t[size];
+  uint32_t *second_values = new uint32_t[size];
 
   // Random initialisation
   for (size_t i = 0; i < size; ++i)
   {
     array[i] = rand();
     values[i] = i;
+    second_values[i] = i;
   }
 
 
   for (auto _ : st)
   {// Copy the array each times as the second times, the GPU_keys is already sorted
     cudaMemcpy(keys, array, sizeof(uint32_t) * size, cudaMemcpyDefault);
-    bubble_sort(keys, values, size);
+    bubble_sort(keys, values, second_values, size);
   }
 
   // Assert that the values are sorted
@@ -175,6 +177,7 @@ void BM_single_thread_bubble_sort(benchmark::State& st)
   delete[] array;
   delete[] keys;
   delete[] values;
+  delete[] second_values;
 }
 
 
@@ -187,12 +190,14 @@ void BM_single_thread_stable_sort(benchmark::State& st)
   uint32_t *array = new uint32_t[size];
   uint32_t *keys = new uint32_t[size];
   uint32_t *values = new uint32_t[size];
+  uint32_t *second_values = new uint32_t[size];
 
   // Random initialisation
   for (size_t i = 0; i < size; ++i)
   {
     array[i] = rand();
     values[i] = i;
+    second_values[i] = i;
   }
 
 
@@ -209,6 +214,7 @@ void BM_single_thread_stable_sort(benchmark::State& st)
   delete[] array;
   delete[] keys;
   delete[] values;
+  delete[] second_values;
 }
 
 
@@ -230,12 +236,13 @@ void BM_parallel_radix_sort(benchmark::State& st)
   // Is absolutely not used, but is needed for the function
   size_t *GPU_values;
   cudaMalloc(&GPU_values, sizeof(size_t) * size);
-
+  uint16_t *GPU_second_values;
+  cudaMalloc(&GPU_second_values, sizeof(uint16_t) * size);
 
   for (auto _ : st)
   {// Copy the array each times as the second times, the GPU_keys is already sorted
     cudaMemcpy(GPU_keys, array, sizeof(uint32_t) * size, cudaMemcpyDefault);
-    parallel_radix_sort(GPU_keys, GPU_values, size);
+    parallel_radix_sort(GPU_keys, GPU_values, GPU_second_values, size);
   }
 
   // Assert that the values are sorted
@@ -246,6 +253,7 @@ void BM_parallel_radix_sort(benchmark::State& st)
   delete[] array;
   cudaFree(GPU_keys);
   cudaFree(GPU_values);
+  cudaFree(GPU_second_values);
 }
 
 
@@ -279,7 +287,7 @@ void BM_nodes_difference(benchmark::State& st, const char *filename)
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
 
   // Sort all objects for easier nodes difference
-  single_thread_bubble_sort(positions, CPU_scene.objects, scene.object_count);
+  single_thread_bubble_sort(positions, CPU_scene.objects, aabbs, scene.object_count);
 
   // Compute the nodes difference
   size_t *nodes_difference;
@@ -398,7 +406,7 @@ void BM_octree_creation(benchmark::State& st, const char *filename)
   position_object<<<numBlocks, threadsPerBlock>>>(aabbs, resulting_scale, positions, scene.object_count);
 
   // Sort all objects for easier nodes difference
-  single_thread_bubble_sort(positions, CPU_scene.objects, scene.object_count);
+  single_thread_bubble_sort(positions, CPU_scene.objects, aabbs, scene.object_count);
 
   // Compute the nodes difference
   size_t *nodes_difference;

@@ -9,7 +9,10 @@ add_compile_definitions(LAYOUT_SOA)
 # Enable anti aliasing
 add_compile_definitions(SSAA)
 
-
+# Enable only one of them to set the type of partitioning used.
+#add_compile_definitions(PARTITIONING_NONE)
+#add_compile_definitions(PARTITIONING_AABB)
+add_compile_definitions(PARTITIONING_OCTREE)
 
 include(FetchContent)
 
